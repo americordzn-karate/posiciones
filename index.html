@@ -23,7 +23,7 @@
             --color-right-node: #33ccff;
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Verdana, sans-serif; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         body { background-color: var(--color-bg); color: var(--color-text); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         header { background-color: var(--color-surface); width: 100%; text-align: center; padding: 8px; border-bottom: 2px solid var(--color-primary); flex-shrink: 0; }
         header h1 { font-size: 1.1rem; letter-spacing: 1px; text-transform: uppercase; color: var(--color-primary); }
@@ -37,26 +37,25 @@
         .row { display: flex; gap: 10px; }
         .row .form-group { flex: 1; }
         .mode-selector { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 12px; }
-        .btn-mode { background-color: #222; color: var(--color-text-muted); border: 1px solid #444; padding: 8px 4px; font-size: 0.75rem; font-weight: bold; text-transform: uppercase; border-radius: 4px; cursor: pointer; }
-        .btn-mode.active { background-color: var(--color-primary); color: #000; border-color: var(--color-primary); }
-        .btn { background-color: var(--color-primary); color: #000; border: none; padding: 12px; width: 100%; font-weight: bold; font-size: 0.95rem; border-radius: 4px; cursor: pointer; text-transform: uppercase; }
+        .btn-mode { background-color: #222; color: var(--color-text-muted); border: 1px solid #444; padding: 8px 4px; font-size: 0.75rem; font-weight: bold; text-transform: uppercase; border-radius: 4px; cursor: pointer; transition: all 0.2s ease; }
+        .btn-mode.active { background-color: var(--color-primary); color: #000; border-color: var(--color-primary); box-shadow: 0 0 8px rgba(230, 184, 0, 0.3); }
+        .btn { background-color: var(--color-primary); color: #000; border: none; padding: 12px; width: 100%; font-weight: bold; font-size: 0.95rem; border-radius: 4px; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; }
         .btn:disabled { background-color: #333; color: #666; cursor: not-allowed; }
         .dashboard { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; text-align: center; align-items: center; }
         .timer-master { grid-column: 1 / -1; font-size: 0.85rem; color: var(--color-text-muted); }
         .target-pose { grid-column: 1 / -1; font-size: 1.1rem; font-weight: bold; color: var(--color-primary); text-transform: uppercase; border: 1px dashed var(--color-primary); padding: 6px; border-radius: 4px; background: rgba(230, 184, 0, 0.05); }
         .timer-principal { font-size: 2.2rem; font-family: monospace; font-weight: bold; color: var(--color-primary); }
         .timer-retencion { background-color: #222; padding: 4px; border-radius: 4px; font-size: 0.8rem; border: 1px solid #333; display: flex; flex-direction: column; justify-content: center; }
-        .timer-retencion span { color: var(--color-primary); font-weight: bold; font-size: 0.95rem; }
+        .timer-retencion span { color: var(--color-primary); font-weight: bold; font-size: 0.95rem; transition: color 0.2s ease; }
         .score-live { grid-column: 1 / -1; font-size: 0.85rem; }
         .video-box { position: relative; width: 100%; flex: 1; background-color: #000; border-radius: 8px; overflow: hidden; border: 2px solid var(--surface); min-height: 0; }
         .video-box.mirror video, .video-box.mirror canvas { transform: scaleX(-1); }
         .video-box video, .video-box canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; }
         .video-box canvas { z-index: 2; pointer-events: none; }
-        #loading-overlay { display: none; text-align: center; padding: 15px; color: var(--color-primary); font-weight: bold; font-size: 1.2rem; text-transform: uppercase; }
+        #loading-overlay { display: none; text-align: center; padding: 15px; color: var(--color-primary); font-weight: bold; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 1px; }
         .countdown-number { font-size: 4rem; display: block; margin-top: 10px; color: #ffffff; font-family: monospace; }
-        #prep-countdown-container { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 5; background: rgba(0, 0, 0, 0.8); padding: 20px 40px; border-radius: 12px; text-align: center; border: 2px solid var(--color-primary); }
-        #prep-countdown-container p { font-size: 1rem; color: var(--color-primary); text-transform: uppercase; }
-        
+        #prep-countdown-container { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 5; background: rgba(0, 0, 0, 0.8); padding: 20px 40px; border-radius: 12px; text-align: center; border: 2px solid var(--color-primary); pointer-events: none; }
+        #prep-countdown-container p { font-size: 1rem; color: var(--color-primary); text-transform: uppercase; letter-spacing: 1px; }
         .modal-results { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.95); z-index: 10; justify-content: center; align-items: flex-start; padding: 20px 15px; overflow-y: auto; }
         .results-card { background-color: var(--color-surface); border: 2px solid var(--color-primary); border-radius: 8px; width: 100%; max-width: 420px; padding: 20px; margin: auto 0; }
         .results-header { text-align: center; border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 10px; }
@@ -152,19 +151,21 @@
             </div>
             <div class="score-final" id="res-score">0%</div>
             <p style="text-align: center; font-size: 0.85rem; margin-bottom: 10px; color: var(--color-text-muted);" id="res-total-logradas"></p>
+            
             <div class="table-wrapper">
                 <table class="table-results">
                     <thead><tr><th>Posición</th><th>Resultado</th></tr></thead>
                     <tbody id="res-table-body"></tbody>
                 </table>
             </div>
+
             <div class="slogan">ACADEMIA DE KARATE SENSHI-KAN<br>"VENCE TUS LÍMITES"</div>
             <button class="btn" style="margin-top: 15px;" id="btn-restart-app">Reiniciar Prueba</button>
         </div>
     </div>
 
     <script>
-        // CONFIGURACIÓN E INTEGRACIÓN INTEGRAL DE SU API APPSCRIPT
+        // CONFIGURACIÓN CENTRALIZADA E INTEGRACIÓN DIRECTA CON GOOGLE APPS SCRIPT
         const URL_API_SHEETS = "https://script.google.com/macros/s/AKfycbybcoO_h2T_0P6X-mX336X8i9616Xm7ImsiQun9R6V-U0OOf6rL6gY8T1bH2R8y6qg/exec"; 
         const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
 
@@ -183,7 +184,13 @@
             color_primary: '#e6b800',
             color_left_node: '#e6b800',   
             color_right_node: '#33ccff',  
-            SUJETO_PRUEBA: { ESTATURA: 174, TALON_A_CADERA: 100, TALON_A_RODILLA: 50, TALON_A_PUNTA: 25, ANCHO_CADERAS: 36 }
+            SUJETO_PRUEBA: {
+                ESTATURA: 174,
+                TALON_A_CADERA: 100,
+                TALON_A_RODILLA: 50,
+                TALON_A_PUNTA: 25,
+                ANCHO_CADERAS: 36
+            }
         };
 
         let estadoApp = {
@@ -206,7 +213,7 @@
         function inicializarAudio() { if (!AudioCtx) AudioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
         function sonarBeep() { if (!AudioCtx) return; let osc = AudioCtx.createOscillator(); let gain = AudioCtx.createGain(); osc.connect(gain); gain.connect(AudioCtx.destination); osc.frequency.value = 880; gain.gain.setValueAtTime(0.1, AudioCtx.currentTime); osc.start(); osc.stop(AudioCtx.currentTime + 0.12); }
         function sonarBuzzer() { if (!AudioCtx) return; let osc = AudioCtx.createOscillator(); let gain = AudioCtx.createGain(); osc.connect(gain); gain.connect(AudioCtx.destination); osc.type = 'sawtooth'; osc.frequency.value = 160; gain.gain.setValueAtTime(0.1, AudioCtx.currentTime); osc.start(); osc.stop(AudioCtx.currentTime + 0.25); }
-        function hablar(mensaje, callback) { if ('speechSynthesis' in window) { window.speechSynthesis.cancel(); let u = new SpeechSynthesisUtterance(mensaje); u.lang = 'es-MX'; if (callback) u.onend = callback; window.speechSynthesis.speak(u); } else if (callback) { callback(); } }
+        function hablar(mensaje, callback) { if ('speechSynthesis' in window) { window.speechSynthesis.cancel(); let utterance = new SpeechSynthesisUtterance(mensaje); utterance.lang = 'es-MX'; if (callback) utterance.onend = callback; window.speechSynthesis.speak(utterance); } else if (callback) { callback(); } }
 
         const CATALOGO_POSICIONES = [
             { id: "HeisokuDachi", nombre: "Heisoku Dachi", nombreAudio: "Heisoku Dachi", evaluar: (nodos, factorEscala) => { let distTalones = calcularDistancia2D(nodos.left_ankle, nodos.right_ankle); let maxDist = (CONFIG.SUJETO_PRUEBA.TALON_A_PUNTA * 0.8) * factorEscala; let rIzq = calcularAngulo(nodos.left_hip, nodos.left_knee, nodos.left_ankle); let rDer = calcularAngulo(nodos.right_hip, nodos.right_knee, nodos.right_ankle); return (distTalones <= maxDist && rIzq >= 150 && rDer >= 150); } },
@@ -238,7 +245,7 @@
             canvas: document.getElementById('output-canvas'), btnRestartApp: document.getElementById('btn-restart-app')
         };
 
-        // INICIALIZACIÓN CON ENTORNO DE COMPATIBILIDAD CRUZADA
+        // ENLACE BIOMÉTRICO ASÍNCRONO SIN COLISIÓN DE HILOS
         window.addEventListener('DOMContentLoaded', async () => {
             let nombreGuardado = localStorage.getItem('senshikan_last_student');
             if (nombreGuardado) document.getElementById('input-name').value = nombreGuardado;
@@ -248,55 +255,59 @@
             try {
                 DOM.loadingOverlay.style.display = 'block';
                 
-                // Forzamos el backend matemático unificado de TensorFlow.js
+                // Forzamos la inicialización del motor WebGL unificado de TensorFlow.js
                 await tf.setBackend('webgl');
                 await tf.ready();
-                console.log("Motor gráfico unificado TF.js WebGL activo.");
+                console.log("Motor gráfico unificado TF.js WebGL inicializado.");
 
-                // Asignamos el núcleo de TensorFlow directamente al objeto interno que requiere Face-API
+                // Vinculamos el hilo matemático de TF a Face-API para evitar que busque copias externas
                 faceapi.tf = tf;
 
-                // Carga de modelos sin colisiones de hilos
+                // Descarga paralela de redes neuronales optimizadas
                 await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
                 await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
                 await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
-                console.log("Redes neuronales de Face-API cargadas exitosamente.");
+                console.log("Modelos de reconocimiento facial cargados con éxito.");
 
-                // Conexión y descarga desde su App Script
+                // Llamada remota a su base de datos en Google Sheets
                 const respuesta = await fetch(URL_API_SHEETS);
-                if (!respuesta.ok) throw new Error("Fallo de red al conectar al servidor de inscripciones.");
+                if (!respuesta.ok) throw new Error("Error de red.");
                 baseDatosAlumnos = await respuesta.json();
 
                 const descriptoresValidos = [];
                 baseDatosAlumnos.forEach(alumno => {
+                    // Verificación estricta de atleta activo y existencia de huella facial
                     if (alumno.Huella_Facial && alumno.Atleta_Activo === true) {
                         try {
                             const firmaFloat = new Float32Array(JSON.parse(alumno.Huella_Facial));
                             descriptoresValidos.push(new faceapi.LabeledFaceDescriptors(alumno.Nombre, [firmaFloat]));
                         } catch(e) {
-                            console.warn("Firma omitida por discrepancia estructural:", alumno.Nombre);
+                            console.warn("Firma ignorada por inconsistencia de datos:", alumno.Nombre);
                         }
                     }
                 });
 
                 if (descriptoresValidos.length > 0) {
                     faceMatcher = new faceapi.FaceMatcher(descriptoresValidos, 0.55);
-                    console.log(`Índice biométrico cargado: ${descriptoresValidos.length} atletas activos.`);
+                    console.log(`Índice biométrico activo: ${descriptoresValidos.length} firmas cargadas.`);
                 } else {
-                    console.error("No se encontraron firmas faciales válidas en la hoja.");
+                    console.error("No se detectaron firmas faciales válidas.");
                 }
 
                 DOM.loadingOverlay.style.display = 'none';
-                activarAcreditacionCamara();
+                activarCamaraReconocimiento();
 
             } catch (err) {
-                console.error("Fallo crítico de arranque:", err);
+                console.error("Fallo de arranque de sensores:", err);
                 document.getElementById('loading-text').innerText = "Fallo de Enlace Biométrico.";
-                hablar("Error de comunicación con el sistema central del Dojo.");
+                hablar("Error de enlace con el servidor de biometría del Dojo.");
+                
+                // Modo de contingencia: Si falla el servidor o los modelos, libera los inputs para uso manual
+                liberarCamposModoManual();
             }
         });
 
-        async function activarAcreditacionCamara() {
+        async function activarCamaraReconocimiento() {
             try {
                 streamReconocimiento = await navigator.mediaDevices.getUserMedia({ 
                     video: { facingMode: "user", width: 640, height: 480 }, 
@@ -314,14 +325,14 @@
                         return;
                     }
 
-                    // Ejecución directa sobre el motor unificado de WebGL para TinyFace
+                    // Escaneo utilizando la configuración TinyFace optimizada para dispositivos móviles
                     const deteccion = await faceapi.detectSingleFace(DOM.video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 }))
                         .withFaceLandmarks()
                         .withFaceDescriptor();
 
                     if (deteccion && faceMatcher) {
                         const match = faceMatcher.findBestMatch(deteccion.descriptor);
-                        console.log("Escáner Facial:", match.toString());
+                        console.log("Resultado escáner:", match.toString());
                         
                         if (match.label !== 'unknown') {
                             const atleta = baseDatosAlumnos.find(a => a.Nombre === match.label);
@@ -346,25 +357,40 @@
                 setTimeout(procesarFrameAcceso, 500);
 
             } catch (e) {
-                console.warn("Hardware de cámara restringido para validación facial.", e);
-                document.getElementById('input-name').removeAttribute('readonly');
-                document.getElementById('input-name').placeholder = "Escribe tu nombre...";
-                document.getElementById('input-height').removeAttribute('readonly');
-                document.getElementById('input-height').placeholder = "Estatura en cm...";
-                DOM.btnStart.disabled = false;
-                DOM.btnStart.innerText = "Iniciar Evaluación (Manual)";
+                console.warn("Restricción de cámara para biometría.", e);
+                liberarCamposModoManual();
             }
         }
 
-        DOM.btnStart.addEventListener('click', iniciarFlujoEvaluacion);
-        DOM.btnRestartApp.addEventListener('click', () => { window.location.reload(); });
+        function liberarCamposModoManual() {
+            document.getElementById('input-name').removeAttribute('readonly');
+            document.getElementById('input-name').placeholder = "Escribe tu nombre...";
+            document.getElementById('input-height').removeAttribute('readonly');
+            document.getElementById('input-height').placeholder = "Estatura en cm...";
+            DOM.btnStart.disabled = false;
+            DOM.btnStart.innerText = "Iniciar Evaluación (Manual)";
+        }
 
-        // MOTOR DE ANÁLISIS CINEMÁTICO PRESERVADO E INTEGRADO
+        DOM.btnStart.addEventListener('click', iniciarFlujoEvaluacion);
+        
+        DOM.btnRestartApp.addEventListener('click', () => {
+            let actualNombre = DOM.setupPanel.querySelector('#input-name').value.trim();
+            if (actualNombre && actualNombre !== "Buscando rostro en cámara...") {
+                localStorage.setItem('senshikan_last_student', actualNombre);
+            }
+            let actualEstatura = DOM.setupPanel.querySelector('#input-height').value.trim();
+            if (actualEstatura && actualEstatura !== "---") {
+                localStorage.setItem('senshikan_last_height', actualEstatura);
+            }
+            window.location.reload();
+        });
+
+        // BLOQUE CINEMÁTICO INTEGRAL Y CONTROLADORES
         async function iniciarFlujoEvaluacion() {
             inicializarAudio();
             controlReconocimientoActivo = false;
             if (streamReconocimiento) { streamReconocimiento.getTracks().forEach(t => t.stop()); }
-
+            
             estadoApp.nombreAlumno = DOM.setupPanel.querySelector('#input-name').value.trim() || "Alumno";
             estadoApp.estaturaAlumno = parseFloat(DOM.setupPanel.querySelector('#input-height').value) || 174;
             estadoApp.guardia = DOM.setupPanel.querySelector('#select-guard').value;
@@ -393,7 +419,7 @@
                     await inicializarPoseDetection();
                 };
             } catch (err) {
-                alert("Error de acceso a cámara: " + err.message); window.location.reload();
+                alert("Error de hardware en cámara: " + err.message); window.location.reload();
             }
         }
 
@@ -406,11 +432,11 @@
         }
 
         function ejecutarConteoInicial() {
-            let cuenta = 5; DOM.prepCountdownDisplay.innerText = cuenta;
-            let t = setInterval(() => {
-                cuenta--;
-                if (cuenta > 0) DOM.prepCountdownDisplay.innerText = cuenta;
-                else { clearInterval(t); DOM.prepCountdownContainer.style.display = 'none'; arrancarEvaluacionOficial(); }
+            let cuentaRegresiva = 5; DOM.prepCountdownDisplay.innerText = cuentaRegresiva;
+            let timerInicial = setInterval(() => {
+                cuentaRegresiva--;
+                if (cuentaRegresiva > 0) DOM.prepCountdownDisplay.innerText = cuentaRegresiva;
+                else { clearInterval(timerInicial); DOM.prepCountdownContainer.style.display = 'none'; arrancarEvaluacionOficial(); }
             }, 1000);
         }
 
@@ -429,10 +455,10 @@
                 if (estadoApp.tiempoMaestroRestante <= 0) finalizarPruebaGlobal();
             }, 1000);
 
-            let ult = performance.now();
-            function bucle(ahora) {
+            let ultimoTiempo = performance.now();
+            function bucleTimers(ahora) {
                 if (!estadoApp.pruebaActiva) return;
-                let delta = (ahora - ult) / 1000; ult = ahora;
+                let delta = (ahora - ultimoTiempo) / 1000; ultimoTiempo = ahora;
                 if (!estadoApp.posturaConectada) {
                     estadoApp.tiempoPrincipalRestante -= delta; if (estadoApp.tiempoPrincipalRestante < 0) estadoApp.tiempoPrincipalRestante = 0;
                     DOM.txtPrincipal.innerText = estadoApp.tiempoPrincipalRestante.toFixed(2);
@@ -452,9 +478,9 @@
                         siguientePosicion();
                     }
                 }
-                requestAnimationFrame(bucle);
+                requestAnimationFrame(bucleTimers);
             }
-            requestAnimationFrame(bucle);
+            requestAnimationFrame(bucleTimers);
         }
 
         function siguientePosicion() {
@@ -469,17 +495,17 @@
         function finalizarPruebaGlobal() {
             estadoApp.pruebaActiva = false; clearInterval(estadoApp.intervaloMaestro);
             if (DOM.video.srcObject) DOM.video.srcObject.getTracks().forEach(t => t.stop());
-            let calif = Math.min(100, Math.round((estadoApp.score * 100) / CONFIG.BASE_MAX_POSICIONES));
+            let calificacionFinal = Math.min(100, Math.round((estadoApp.score * 100) / CONFIG.BASE_MAX_POSICIONES));
             DOM.resStudent.innerText = estadoApp.nombreAlumno; DOM.resMode.innerText = `MODO: ${estadoApp.modoTextoActual}`;
             DOM.resDate.innerText = new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
-            DOM.resScore.innerText = `${calif}%`; DOM.resTotalLogradas.innerText = `${estadoApp.score} de 15 posiciones requeridas`;
+            DOM.resScore.innerText = `${calificacionFinal}%`; DOM.resTotalLogradas.innerText = `${estadoApp.score} de 15 posiciones requeridas`;
             DOM.resTableBody.innerHTML = "";
             estadoApp.historialResultados.forEach(res => {
                 let f = document.createElement('tr'); f.innerHTML = `<td>${res.nombre}</td><td class="${res.logrado ? 'status-ok' : 'status-fail'}">${res.logrado ? 'LOGRADA (+1)' : 'NO LOGRADA'}</td>`;
                 DOM.resTableBody.appendChild(f);
             });
             DOM.modalResults.style.display = 'flex';
-            hablar(`Prueba finalizada. Calificación de ${calif}.`);
+            hablar(`Prueba finalizada. Calificación de ${calificacionFinal}.`);
         }
 
         async function detectarFrame() {
@@ -497,34 +523,34 @@
                 };
 
                 if (Object.values(nodos).every(n => n && n.score > 0.35)) {
-                    const vW = DOM.video.videoWidth; const vH = DOM.video.videoHeight;
-                    const cW = DOM.canvas.width; const cH = DOM.canvas.height;
-                    const dib = {};
-                    Object.keys(nodos).forEach(k => { dib[k] = { x: (nodos[k].x / vW) * cW, y: (nodos[k].y / vH) * cH }; });
+                    const videoWidth = DOM.video.videoWidth; const videoHeight = DOM.video.videoHeight;
+                    const canvasWidth = DOM.canvas.width; const canvasHeight = DOM.canvas.height;
+                    const dibujoNodos = {};
+                    Object.keys(nodos).forEach(key => { dibujoNodos[key] = { x: (nodos[key].x / videoWidth) * canvasWidth, y: (nodos[key].y / videoHeight) * canvasHeight }; });
 
                     ctx.lineWidth = 4;
-                    dibujarLinea(ctx, dib.left_hip, dib.left_knee, CONFIG.color_left_node);
-                    dibujarLinea(ctx, dib.left_knee, dib.left_ankle, CONFIG.color_left_node);
-                    dibujarLinea(ctx, dib.left_ankle, dib.left_foot, CONFIG.color_left_node);
-                    dibujarLinea(ctx, dib.right_hip, dib.right_knee, CONFIG.color_right_node);
-                    dibujarLinea(ctx, dib.right_knee, dib.right_ankle, CONFIG.color_right_node);
-                    dibujarLinea(ctx, dib.right_ankle, dib.right_foot, CONFIG.color_right_node);
+                    dibujarLinea(ctx, dibujoNodos.left_hip, dibujoNodos.left_knee, CONFIG.color_left_node);
+                    dibujarLinea(ctx, dibujoNodos.left_knee, dibujoNodos.left_ankle, CONFIG.color_left_node);
+                    dibujarLinea(ctx, dibujoNodos.left_ankle, dibujoNodos.left_foot, CONFIG.color_left_node);
+                    dibujarLinea(ctx, dibujoNodos.right_hip, dibujoNodos.right_knee, CONFIG.color_right_node);
+                    dibujarLinea(ctx, dibujoNodos.right_knee, dibujoNodos.right_ankle, CONFIG.color_right_node);
+                    dibujarLinea(ctx, dibujoNodos.right_ankle, dibujoNodos.right_foot, CONFIG.color_right_node);
 
-                    Object.keys(dib).forEach(k => { dibujarPunto(ctx, dib[k].x, dib[k].y, k.startsWith('left') ? CONFIG.color_left_node : CONFIG.color_right_node); });
+                    Object.keys(dibujoNodos).forEach(key => { dibujarPunto(ctx, dibujoNodos[key].x, dibujoNodos[key].y, key.startsWith('left') ? CONFIG.color_left_node : CONFIG.color_right_node); });
 
-                    let pxEst = calcularDistancia2D(nodos.left_hip, nodos.left_ankle);
-                    let fEscala = pxEst / CONFIG.SUJETO_PRUEBA.TALON_A_CADERA;
-                    let cumple = estadoApp.posicionActual.evaluar(nodos, fEscala);
+                    let pxEstatura = calcularDistancia2D(nodos.left_hip, nodos.left_ankle);
+                    let factorEscala = pxEstatura / CONFIG.SUJETO_PRUEBA.TALON_A_CADERA;
+                    let cumplePostura = estadoApp.posicionActual.evaluar(nodos, factorEscala);
 
-                    if (cumple && !estadoApp.posturaConectada) { estadoApp.posturaConectada = true; sonarBeep(); }
-                    else if (!cumple && estadoApp.posturaConectada) { estadoApp.posturaConectada = false; estadoApp.tiempoRetencionAcumulado = 0; sonarBuzzer(); }
+                    if (cumplePostura && !estadoApp.posturaConectada) { estadoApp.posturaConectada = true; sonarBeep(); }
+                    else if (!cumplePostura && estadoApp.posturaConectada) { estadoApp.posturaConectada = false; estadoApp.tiempoRetencionAcumulado = 0; sonarBuzzer(); }
                 }
             }
             requestAnimationFrame(detectarFrame);
         }
 
         function dibujarLinea(cCtx, p1, p2, color) { cCtx.beginPath(); cCtx.moveTo(p1.x, p1.y); cCtx.lineTo(p2.x, p2.y); cCtx.strokeStyle = color; cCtx.stroke(); cCtx.closePath(); }
-        function dibujarPunto(cCtx, sX, sY, color) { cCtx.beginPath(); cCtx.arc(sX, sY, 7, 0, 2 * Math.PI); cCtx.fillStyle = color; cCtx.fill(); i=1.5; cCtx.strokeStyle = '#ffffff'; cCtx.stroke(); cCtx.closePath(); }
+        function dibujarPunto(cCtx, sX, sY, color) { cCtx.beginPath(); cCtx.arc(sX, sY, 7, 0, 2 * Math.PI); cCtx.fillStyle = color; cCtx.fill(); cCtx.lineWidth = 1.5; cCtx.strokeStyle = '#ffffff'; cCtx.stroke(); cCtx.closePath(); }
     </script>
 </body>
 </html>
