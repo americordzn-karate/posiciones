@@ -478,10 +478,15 @@
     </div>
 
     <script>
+        // Apagar las alertas redundantes de TensorFlow de inmediato
+        if (window.tf) {
+            tf.env().set('DEBUG', false);
+        }
+
         // =========================================================================
         // CONFIGURACIÓN CENTRALIZADA ENLACE BIOMÉTRICO (ACTUALIZA TU URL AQUÍ)
         // =========================================================================
-        const URL_API_SHEETS = "https://script.google.com/macros/s/AKfycbz5BJRpDzcxGdelQVbvTsBKd_HrGhELQTqkr_4-Jjg8h_IAPnFhYmSRCjvJyvjrs3cE8g/exec"; 
+        const URL_API_SHEETS = "TU_URL_DE_APPS_SCRIPT_AQUÍ"; 
         const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
 
         let baseDatosAlumnos = [];
@@ -725,7 +730,7 @@
         };
 
         // =========================================================================
-        // PROCESO BIOMÉTRICO AUTO-EJECUTABLE EN PARALELO (RESPETANDO DOM ORIGINAL)
+        // PROCESO BIOMÉTRICO AUTO-EJECUTABLE EN PARALELO OPTIMIZADO PARA EVITAR CONFLICTOS
         // =========================================================================
         window.addEventListener('DOMContentLoaded', async () => {
             // Cargar datos de persistencia originales si existen
@@ -734,30 +739,53 @@
             let estaturaGuardada = localStorage.getItem('senshikan_last_height');
             if (estaturaGuardada) document.getElementById('input-height').value = estaturaGuardada;
 
-            // Arrancar inicialización de Face-api en segundo plano
             try {
                 DOM.loadingOverlay.style.display = 'block';
                 document.getElementById('loading-text').innerText = "Sincronizando Sistema de Seguridad Biométrica...";
 
+                // SOLUCIÓN CLAVE: Desconectar face-api de WebGL/TensorFlow para que no choque con MediaPipe
+                faceapi.env.monkeyPatch({
+                    Canvas: window.HTMLCanvasElement,
+                    Image: window.HTMLImageElement,
+                    ImageData: window.ImageData,
+                    Video: window.HTMLVideoElement,
+                    createCanvasElement: () => document.createElement('canvas'),
+                    createImageElement: () => document.createElement('img')
+                });
+                
+                // Forzar uso del motor matemático interno libre de WebGL
+                await faceapi.tf.setBackend('cpu'); 
+
+                // Cargar los pesos de los modelos neuronales faciales
                 await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
                 await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
                 await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
 
+                console.log("Modelos faciales cargados en ambiente aislado (CPU).");
+
                 // Cargar Alumnos autorizados desde Sheets
                 const respuesta = await fetch(URL_API_SHEETS);
+                if (!respuesta.ok) throw new Error("Status HTTP inválido en la base central.");
                 baseDatosAlumnos = await respuesta.json();
 
-                // Armar emparejador facial
+                // Armar emparejador facial / Extracción de huellas cargadas
                 const descriptoresValidos = [];
                 baseDatosAlumnos.forEach(alumno => {
                     if (alumno.Huella_Facial) {
-                        const firmaFloat = new Float32Array(JSON.parse(alumno.Huella_Facial));
-                        descriptoresValidos.push(new faceapi.LabeledFaceDescriptors(alumno.Nombre, [firmaFloat]));
+                        try {
+                            const firmaFloat = new Float32Array(JSON.parse(alumno.Huella_Facial));
+                            descriptoresValidos.push(new faceapi.LabeledFaceDescriptors(alumno.Nombre, [firmaFloat]));
+                        } catch(e) {
+                            console.warn(`No se pudo procesar la huella facial guardada de: ${alumno.Nombre}`);
+                        }
                     }
                 });
 
                 if (descriptoresValidos.length > 0) {
                     faceMatcher = new faceapi.FaceMatcher(descriptoresValidos, 0.55);
+                    console.log(`Base de firmas biométricas armada con éxito: ${descriptoresValidos.length} alumnos.`);
+                } else {
+                    console.warn("La base de datos central no contiene ninguna firma facial válida guardada.");
                 }
 
                 DOM.loadingOverlay.style.display = 'none';
@@ -768,26 +796,35 @@
             } catch (err) {
                 console.error("Fallo de inicio seguro:", err);
                 document.getElementById('loading-text').innerText = "Error de enlace con servidor central.";
+                hablar("Error de comunicación con el servidor central de alumnos.");
             }
         });
 
         async function activarCamaraAcreditacionOculta() {
             try {
-                // Usamos temporalmente el elemento de video original para leer las huellas sin alterar la UI
+                // Usamos el elemento de video original para leer los rostros en el Setup
                 streamReconocimiento = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
                 DOM.video.srcObject = streamReconocimiento;
-                DOM.videoContainer.style.display = 'block'; // Mostrar ventana temporalmente para centrar el rostro
+                DOM.videoContainer.style.display = 'block'; 
                 DOM.videoContainer.classList.add('mirror');
 
                 async function procesarFrameAcceso() {
                     if (!controlReconocimientoActivo) return;
 
-                    const deteccion = await faceapi.detectSingleFace(DOM.video, new faceapi.TinyFaceDetectorOptions())
+                    // Validar si el video ya está transmitiendo frames reales
+                    if (DOM.video.paused || DOM.video.ended || DOM.video.readyState < 2) {
+                        setTimeout(procesarFrameAcceso, 250);
+                        return;
+                    }
+
+                    // Forzar parámetros del TinyDetector optimizado para CPU
+                    const deteccion = await faceapi.detectSingleFace(DOM.video, new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.5 }))
                         .withFaceLandmarks()
                         .withFaceDescriptor();
 
                     if (deteccion && faceMatcher) {
                         const match = faceMatcher.findBestMatch(deteccion.descriptor);
+                        console.log(`Escáner activo. Rostro detectado: ${match.toString()}`);
                         
                         if (match.label !== 'unknown') {
                             const atleta = baseDatosAlumnos.find(a => a.Nombre === match.label);
@@ -796,23 +833,22 @@
                                 document.getElementById('input-name').value = atleta.Nombre;
                                 document.getElementById('input-height').value = atleta.Estatura_cm || 174;
                                 
-                                // Habilitar el botón oficial
+                                // Habilitar el botón oficial de inicio
                                 DOM.btnStart.disabled = false;
                                 DOM.btnStart.innerText = "Iniciar Evaluación";
                                 
-                                controlReconocimientoActivo = false; // Detener escáner biométrico exitoso
+                                controlReconocimientoActivo = false; // Detener escáner biométrico
                                 hablar(`Pase autorizado. Bienvenido ${atleta.Nombre.split(' ')[0]}.`);
                                 return;
                             }
                         }
                     }
 
-                    // Si no hay match o rostro, mantén los inputs limpios y protegidos
                     if (controlReconocimientoActivo) {
-                        setTimeout(procesarFrameAcceso, 400);
+                        setTimeout(procesarFrameAcceso, 300); // Bucle rápido y ligero en CPU
                     }
                 }
-                setTimeout(procesarFrameAcceso, 1000);
+                setTimeout(procesarFrameAcceso, 800);
 
             } catch (e) {
                 console.warn("Cámara bloqueada o no disponible para escaneo inicial.", e);
@@ -859,6 +895,11 @@
             DOM.loadingOverlay.style.display = 'block';
 
             try {
+                // Restablecer el backend WebGL para que MediaPipe corra a máxima velocidad gráfica
+                if (window.tf) {
+                    await tf.setBackend('webgl');
+                }
+
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: { 
                         facingMode: estadoApp.camaraSeleccionada, 
@@ -1102,3 +1143,4 @@
         }
     </script>
 </body>
+</html>
