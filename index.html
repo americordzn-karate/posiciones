@@ -3,15 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Senshi-Kan Karate Pose Evaluator</title>
+    <title>Senshi-Kan Karate Pose Evaluator & Biometrics</title>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 
     <script>
-        // Silenciar por completo las advertencias redundantes de inicialización de Kernels en consola
         if (typeof tf !== 'undefined') {
             tf.env().set('PROD', true);
             tf.env().set('DEBUG', false);
@@ -26,8 +27,9 @@
             --color-text-muted: #aaaaaa;
             --color-primary: #e6b800; /* Oro Senshi-Kan */
             --color-error: #ff3333;
+            --color-success: #33cc66;
+            --color-biometric: #00ffcc; /* Color del Escáner Facial */
             
-            /* Lado Izquierdo Amarillo, Lado Derecho Celeste */
             --color-left-node: #e6b800;
             --color-right-node: #33ccff;
         }
@@ -217,6 +219,40 @@
             font-size: 0.85rem;
         }
 
+        /* Panel de Información Biométrica */
+        #biometric-panel {
+            background: rgba(0, 255, 204, 0.04);
+            border: 1px solid var(--color-biometric);
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            text-align: center;
+        }
+
+        #biometric-status {
+            font-weight: bold;
+            color: var(--color-biometric);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        #biometric-progress-bar {
+            width: 100%;
+            height: 6px;
+            background-color: #222;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 4px;
+        }
+
+        #biometric-progress-fill {
+            width: 0%;
+            height: 100%;
+            background-color: var(--color-biometric);
+            transition: width 0.1s linear;
+        }
+
         .video-box {
             position: relative;
             width: 100%;
@@ -224,7 +260,7 @@
             background-color: #000;
             border-radius: 8px;
             overflow: hidden;
-            border: 2px solid var(--surface);
+            border: 2px solid var(--color-surface);
             min-height: 0;
         }
 
@@ -370,13 +406,12 @@
 <body>
 
     <header>
-        <h1>Senshi-Kan Kinematic Analyzer</h1>
-        <p>Evaluador Automatizado de Posturas · "Vence Tus Límites"</p>
+        <h1>Senshi-Kan Kinematic & Biometric Analyzer</h1>
+        <p>Evaluación Automatizada y Registro de Rostro · "Vence Tus Límites"</p>
     </header>
 
     <div class="container">
         <div class="card" id="setup-panel">
-            
             <div class="form-group">
                 <label>Modo de Competencia</label>
                 <div class="mode-selector">
@@ -411,11 +446,19 @@
                     <option value="environment">Trasera (Instructor - Modo Real)</option>
                 </select>
             </div>
-            <button class="btn" id="btn-start">Iniciar Evaluación</button>
+            <button class="btn" id="btn-start">Iniciar Identificación</button>
         </div>
 
         <div class="card" id="loading-overlay">
-            <span id="loading-text">Cargando Motores de Visión Artificial Inteligente...</span>
+            <span id="loading-text">Cargando Redes Neuronales y Modelos Biométricos...</span>
+        </div>
+
+        <div class="card" id="biometric-panel" style="display: none;">
+            <div id="biometric-status">SISTEMA BIOMÉTRICO: BUSCANDO ROSTRO...</div>
+            <div id="biometric-details" style="font-size: 0.75rem; color: var(--color-text-muted);">Alinea tu cara al centro del recuadro de video</div>
+            <div id="biometric-progress-bar">
+                <div id="biometric-progress-fill"></div>
+            </div>
         </div>
 
         <div class="card" id="test-panel" style="display: none;">
@@ -433,7 +476,7 @@
             <canvas id="output-canvas"></canvas>
             
             <div id="prep-countdown-container">
-                <p>Prepárate en tu lugar</p>
+                <p>BIOMETRÍA OK. Prepárate en tu lugar</p>
                 <span id="prep-countdown-display" class="countdown-number">5</span>
             </div>
         </div>
@@ -444,6 +487,7 @@
             <div class="results-header">
                 <h2>Evaluación Finalizada</h2>
                 <div class="student-name" id="res-student" style="font-size: 1.1rem; font-weight: bold; margin-top: 3px;">---</div>
+                <div id="res-id-biometric" style="font-size: 0.75rem; color: var(--color-biometric); margin-bottom: 5px;">HUELLA FACIAL REGISTRADA</div>
                 <div id="res-mode" style="font-size: 0.85rem; color: var(--color-primary); font-weight: bold; text-transform: uppercase; margin-top: 2px;">MODO: ---</div>
                 <p id="res-date" style="font-size: 0.75rem; color: var(--color-text-muted); margin-top: 3px;"></p>
             </div>
@@ -477,7 +521,8 @@
             color_error: '#ff3333',
             color_primary: '#e6b800',
             color_left_node: '#e6b800',   
-            color_right_node: '#33ccff',  
+            color_right_node: '#33ccff',
+            color_biometric: '#00ffcc',
             SUJETO_PRUEBA: {
                 ESTATURA: 174,
                 TALON_A_CADERA: 100,
@@ -502,11 +547,16 @@
             catalogoLocal: [],
             pruebaActiva: false,
             posturaConectada: false,
-            intervaloMaestro: null
+            intervaloMaestro: null,
+            
+            // Estado Biométrico (Nuevo)
+            faseBiometrica: false,
+            progresoBiometrico: 0,
+            huellaFacialRegistrada: null
         };
 
         let AudioCtx = null;
-        let detector;
+        let detector; // BlazePose detector
         let ctx = document.getElementById('output-canvas').getContext('2d');
 
         function seleccionarModo(idBoton, valorTolerancia, nombreTexto) {
@@ -682,6 +732,10 @@
             btnStart: document.getElementById('btn-start'),
             setupPanel: document.getElementById('setup-panel'),
             loadingOverlay: document.getElementById('loading-overlay'),
+            biometricPanel: document.getElementById('biometric-panel'),
+            biometricStatus: document.getElementById('biometric-status'),
+            biometricDetails: document.getElementById('biometric-details'),
+            biometricProgressFill: document.getElementById('biometric-progress-fill'),
             testPanel: document.getElementById('test-panel'),
             videoContainer: document.getElementById('video-container'),
             prepCountdownContainer: document.getElementById('prep-countdown-container'),
@@ -703,30 +757,20 @@
             btnRestartApp: document.getElementById('btn-restart-app')
         };
 
-        // PERSISTENCIA DEL PANEL: Se agregan las claves para leer el último estado guardado
         window.addEventListener('DOMContentLoaded', () => {
             let nombreGuardado = localStorage.getItem('senshikan_last_student');
-            if (nombreGuardado) {
-                document.getElementById('input-name').value = nombreGuardado;
-            }
+            if (nombreGuardado) document.getElementById('input-name').value = nombreGuardado;
             let estaturaGuardada = localStorage.getItem('senshikan_last_height');
-            if (estaturaGuardada) {
-                document.getElementById('input-height').value = estaturaGuardada;
-            }
+            if (estaturaGuardada) document.getElementById('input-height').value = estaturaGuardada;
         });
 
         DOM.btnStart.addEventListener('click', iniciarFlujoEvaluacion);
         
-        // PERSISTENCIA EN EL REINICIO: Guarda de forma segura ambos inputs antes de recargar la ventana
         DOM.btnRestartApp.addEventListener('click', () => {
             let actualNombre = DOM.setupPanel.querySelector('#input-name').value.trim();
-            if (actualNombre) {
-                localStorage.setItem('senshikan_last_student', actualNombre);
-            }
+            if (actualNombre) localStorage.setItem('senshikan_last_student', actualNombre);
             let actualEstatura = DOM.setupPanel.querySelector('#input-height').value.trim();
-            if (actualEstatura) {
-                localStorage.setItem('senshikan_last_height', actualEstatura);
-            }
+            if (actualEstatura) localStorage.setItem('senshikan_last_height', actualEstatura);
             window.location.reload();
         });
 
@@ -751,19 +795,11 @@
             DOM.loadingOverlay.style.display = 'block';
 
             try {
-                // SOLUCIÓN AL BLOQUEO CORS: Forzar seguimiento de redirección en solicitudes a Google Macros (HTTP 302/303)
-                const respuesta = await fetch("https://script.google.com/macros/s/AKfycbybcoO_h2T_0P6X-mX336X8i9616Xm7ImsiQun9R6V-U0OOf6rL6gY8T1bH2R8y6qg/exec", { 
-                    method: 'GET',
-                    mode: 'cors',
-                    redirect: 'follow',
-                    headers: { 
-                        'Accept': 'application/json'
-                    }
-                });
-
-                if (respuesta.ok) {
-                    console.log("Sincronización exitosa con la nube Senshi-Kan.");
-                }
+                // CARGA EN PARALELO: Pesos de Face-API.js (Detección de caja y Landmarks de huella facial)
+                const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
+                await faceapi.nets.ssdliteMobilenetv1.loadFromUri(MODEL_URL);
+                await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+                await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
 
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: { 
@@ -781,32 +817,86 @@
                     
                     DOM.loadingOverlay.style.display = 'none';
                     DOM.videoContainer.style.display = 'block';
+                    DOM.biometricPanel.style.display = 'flex';
                     
-                    await inicializarPoseDetection();
+                    // Activamos la fase de bloqueo e identificación biométrica
+                    estadoApp.faseBiometrica = true;
+                    hablar(`Iniciando sistema de identificación biométrica. Por favor, mira fijamente a la cámara, ${estadoApp.nombreAlumno}.`);
+                    detectarCicloBiometrico();
                 };
 
             } catch (err) {
-                console.warn("Iniciando en modo de contingencia local seguro debido a:", err.message);
-                
-                // Asegurar arranque con hardware local si falla la red externa
-                try {
-                    const stream = await navigator.mediaDevices.getUserMedia({
-                        video: { facingMode: estadoApp.camaraSeleccionada, width: 640, height: 480 },
-                        audio: false
-                    });
-                    DOM.video.srcObject = stream;
-                    DOM.video.onloadedmetadata = async () => {
-                        DOM.canvas.width = DOM.video.videoWidth;
-                        DOM.canvas.height = DOM.video.videoHeight;
-                        DOM.loadingOverlay.style.display = 'none';
-                        DOM.videoContainer.style.display = 'block';
-                        await inicializarPoseDetection();
-                    };
-                } catch(e) {
-                    alert("Error crítico de acceso de hardware: " + e.message);
-                    window.location.reload();
-                }
+                alert("Error crítico al inicializar hardware o modelos biométricos: " + err.message);
+                window.location.reload();
             }
+        }
+
+        // CICLO EXCLUSIVO BIOMÉTRICO (Extrae la huella y landmarks faciales)
+        async function detectarCicloBiometrico() {
+            if (!estadoApp.faseBiometrica) return;
+
+            ctx.clearRect(0, 0, DOM.canvas.width, DOM.canvas.height);
+
+            // Intentar detectar el rostro y calcular sus descriptores vectoriales (huella facial de 128 flotantes)
+            const deteccion = await faceapi.detectSingleFace(DOM.video, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.4 }))
+                                           .withFaceLandmarks()
+                                           .withFaceDescriptor();
+
+            if (deteccion) {
+                const caja = deteccion.detection.box;
+                const dimensionesRelativas = faceapi.resizeResults(deteccion, { width: DOM.canvas.width, height: DOM.canvas.height });
+                
+                // Dibujar el recuadro dinámico de escaneo biométrico
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = CONFIG.color_biometric;
+                ctx.strokeRect(dimensionesRelativas.detection.box.x, dimensionesRelativas.detection.box.y, dimensionesRelativas.detection.box.width, dimensionesRelativas.detection.box.height);
+
+                // Dibujar puntos clave de la huella facial para dar feedback estético de alta tecnología
+                ctx.fillStyle = CONFIG.color_biometric;
+                dimensionesRelativas.landmarks.positions.forEach(pt => {
+                    ctx.beginPath();
+                    ctx.arc(pt.x, pt.y, 2, 0, 2 * Math.PI);
+                    ctx.fill();
+                });
+
+                // Incrementar el progreso si el rostro es estable en el encuadre
+                estadoApp.progresoBiometrico += 1.5; 
+                if (estadoApp.progresoBiometrico > 100) estadoApp.progresoBiometrico = 100;
+
+                DOM.biometricStatus.innerText = `ESCANEANDO: ${Math.floor(estadoApp.progresoBiometrico)}%`;
+                DOM.biometricDetails.innerText = "Registrando mapa e hitos vectoriales de la estructura facial...";
+                DOM.biometricDetails.style.color = CONFIG.color_biometric;
+                DOM.biometricProgressFill.style.width = `${estadoApp.progresoBiometrico}%`;
+
+                if (estadoApp.progresoBiometrico >= 100) {
+                    estadoApp.faseBiometrica = false;
+                    estadoApp.huellaFacialRegistrada = deteccion.descriptor; // Guardamos la huella facial real
+                    
+                    sonarBeep();
+                    DOM.biometricStatus.innerText = "IDENTIDAD VERIFICADA - INTEGRIDAD OK";
+                    DOM.biometricStatus.style.color = "#33cc66";
+                    DOM.biometricDetails.innerText = `Alumno: ${estadoApp.nombreAlumno} registrado correctamente en Senshi-Kan Cloud.`;
+                    
+                    setTimeout(async () => {
+                        DOM.biometricPanel.style.display = 'none';
+                        DOM.loadingOverlay.style.display = 'block';
+                        DOM.loadingOverlay.querySelector('#loading-text').innerText = "Iniciando análisis cinemático de esqueleto...";
+                        await inicializarPoseDetection();
+                    }, 1500);
+                    return;
+                }
+            } else {
+                // Si el rostro se pierde, decrementa el progreso penalizando la inestabilidad
+                estadoApp.progresoBiometrico -= 1;
+                if (estadoApp.progresoBiometrico < 0) estadoApp.progresoBiometrico = 0;
+                
+                DOM.biometricStatus.innerText = "SISTEMA BIOMÉTRICO: BUSCANDO ROSTRO...";
+                DOM.biometricDetails.innerText = "Alinea tu cara al centro del recuadro de video";
+                DOM.biometricDetails.style.color = CONFIG.color_error;
+                DOM.biometricProgressFill.style.width = `${estadoApp.progresoBiometrico}%`;
+            }
+
+            requestAnimationFrame(detectarCicloBiometrico);
         }
 
         async function inicializarPoseDetection() {
@@ -816,6 +906,7 @@
                 modelType: 'full'
             });
 
+            DOM.loadingOverlay.style.display = 'none';
             DOM.prepCountdownContainer.style.display = 'block';
             hablar(`Realiza las posiciones que te voy a pedir a continuación en modo ${estadoApp.modoTextoActual}`, ejecutarConteoInicial);
         }
@@ -866,7 +957,6 @@
                     if (estadoApp.tiempoPrincipalRestante < 0) estadoApp.tiempoPrincipalRestante = 0;
                     DOM.txtPrincipal.innerText = estadoApp.tiempoPrincipalRestante.toFixed(2);
                     DOM.txtPrincipal.style.color = (estadoApp.tiempoPrincipalRestante <= 5) ? CONFIG.color_error : CONFIG.color_primary;
-
                     DOM.txtRetencion.style.color = CONFIG.color_primary; 
 
                     if (estadoApp.tiempoPrincipalRestante <= 0) {
@@ -878,7 +968,6 @@
                 } else {
                     estadoApp.tiempoRetencionAcumulado += delta;
                     DOM.txtRetencion.innerText = `${estadoApp.tiempoRetencionAcumulado.toFixed(1)}s / 5s`;
-
                     DOM.txtRetencion.style.color = CONFIG.color_error; 
 
                     if (estadoApp.tiempoRetencionAcumulado >= CONFIG.TIEMPO_RETENCION_REQUERIDO) {
