@@ -281,7 +281,7 @@
             letter-spacing: 1px;
         }
 
-        /* AJUSTE METODOLÓGICO: Modal extendido sin scroll para capturas limpias */
+        /* Modal extendido sin scroll para capturas limpias */
         .modal-results {
             display: none;
             position: fixed;
@@ -292,9 +292,9 @@
             background-color: rgba(0,0,0,0.95);
             z-index: 10;
             justify-content: center;
-            align-items: flex-start; /* Permite alineación superior si la pantalla es pequeña */
+            align-items: flex-start;
             padding: 20px 15px;
-            overflow-y: auto; /* El scroll ahora pertenece a la pantalla completa si es necesario, no al cuadro */
+            overflow-y: auto;
         }
 
         .results-card {
@@ -304,7 +304,7 @@
             width: 100%;
             max-width: 420px;
             padding: 20px;
-            margin: auto 0; /* Centrado vertical natural */
+            margin: auto 0;
         }
 
         .results-header {
@@ -328,7 +328,6 @@
             margin: 5px 0;
         }
 
-        /* Contenedor de la tabla extendido verticalmente al 100% */
         .table-wrapper {
             margin-top: 12px;
             width: 100%;
@@ -390,7 +389,7 @@
             <div class="row">
                 <div class="form-group">
                     <label for="input-height">Estatura (cm)</label>
-                    <input type="number" id="input-height" value="174" required>
+                    <input type="number" id="input-height" placeholder="p. ej. 174" required>
                 </div>
                 <div class="form-group">
                     <label for="select-guard">Guardia Inicial</label>
@@ -438,7 +437,7 @@
         </div>
     </div>
 
-    <!-- Modal de Resultados Finales (Modificado para visualización vertical completa) -->
+    <!-- Modal de Resultados Finales -->
     <div class="modal-results" id="modal-results">
         <div class="results-card">
             <div class="results-header">
@@ -450,7 +449,6 @@
             <div class="score-final" id="res-score">0%</div>
             <p style="text-align: center; font-size: 0.85rem; margin-bottom: 10px; color: var(--color-text-muted);" id="res-total-logradas"></p>
             
-            <!-- Sin restricciones de altura para permitir captura completa -->
             <div class="table-wrapper">
                 <table class="table-results">
                     <thead>
@@ -473,7 +471,7 @@
             TIEMPO_MAESTRO_TOTAL: 120,
             TIEMPO_VENTANA_POSTURA: 20,
             TIEMPO_RETENCION_REQUERIDO: 5,
-            TOLERANCIA_PORCENTAJE: 0.50, // Forzado por defecto inicial para Principiante
+            TOLERANCIA_PORCENTAJE: 0.50, 
             BASE_MAX_POSICIONES: 15,
             color_error: '#ff3333',
             color_primary: '#e6b800',
@@ -493,7 +491,7 @@
             estaturaAlumno: 174,
             guardia: "izquierdo",
             camaraSeleccionada: "user",
-            modoTextoActual: "Principiante", // Alineado correctamente con el estado por defecto inicial
+            modoTextoActual: "Principiante", 
             tiempoMaestroRestante: CONFIG.TIEMPO_MAESTRO_TOTAL,
             tiempoPrincipalRestante: CONFIG.TIEMPO_VENTANA_POSTURA,
             tiempoRetencionAcumulado: 0,
@@ -510,7 +508,6 @@
         let detector;
         let ctx = document.getElementById('output-canvas').getContext('2d');
 
-        // FUNCIÓN CORREGIDA: Fuerza el mapeo directo a CONFIG sin perder el valor en ejecuciones posteriores
         function seleccionarModo(idBoton, valorTolerancia, nombreTexto) {
             CONFIG.TOLERANCIA_PORCENTAJE = valorTolerancia;
             estadoApp.modoTextoActual = nombreTexto;
@@ -705,18 +702,29 @@
             btnRestartApp: document.getElementById('btn-restart-app')
         };
 
+        // PERSISTENCIA DEL PANEL: Se agregan las claves para leer el último estado guardado
         window.addEventListener('DOMContentLoaded', () => {
             let nombreGuardado = localStorage.getItem('senshikan_last_student');
             if (nombreGuardado) {
                 document.getElementById('input-name').value = nombreGuardado;
             }
+            let estaturaGuardada = localStorage.getItem('senshikan_last_height');
+            if (estaturaGuardada) {
+                document.getElementById('input-height').value = estaturaGuardada;
+            }
         });
 
         DOM.btnStart.addEventListener('click', iniciarFlujoEvaluacion);
+        
+        // PERSISTENCIA EN EL REINICIO: Guarda de forma segura ambos inputs antes de recargar la ventana
         DOM.btnRestartApp.addEventListener('click', () => {
             let actualNombre = DOM.setupPanel.querySelector('#input-name').value.trim();
             if (actualNombre) {
                 localStorage.setItem('senshikan_last_student', actualNombre);
+            }
+            let actualEstatura = DOM.setupPanel.querySelector('#input-height').value.trim();
+            if (actualEstatura) {
+                localStorage.setItem('senshikan_last_height', actualEstatura);
             }
             window.location.reload();
         });
@@ -730,6 +738,7 @@
             estadoApp.camaraSeleccionada = DOM.setupPanel.querySelector('#select-camera').value;
 
             localStorage.setItem('senshikan_last_student', estadoApp.nombreAlumno);
+            localStorage.setItem('senshikan_last_height', DOM.setupPanel.querySelector('#input-height').value.trim());
 
             if (estadoApp.camaraSeleccionada === "user") {
                 DOM.videoContainer.classList.add('mirror');
@@ -948,7 +957,6 @@
                     let pxEstatura = calcularDistancia2D(nodos.left_hip, nodos.left_ankle);
                     let factorEscala = pxEstatura / CONFIG.SUJETO_PRUEBA.TALON_A_CADERA;
 
-                    // EJECUCIÓN DEL MOTOR: Evalúa con las variables de tolerancia perfectamente blindadas.
                     let cumplePostura = estadoApp.posicionActual.evaluar(nodos, factorEscala);
 
                     if (cumplePostura && !estadoApp.posturaConectada) {
