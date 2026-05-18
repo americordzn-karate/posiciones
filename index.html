@@ -171,7 +171,6 @@
             justify-content: center;
         }
 
-        /* Color dinámico inicial de la estabilidad */
         .timer-retencion span {
             color: var(--color-primary);
             font-weight: bold;
@@ -231,6 +230,29 @@
             margin-top: 10px;
             color: #ffffff;
             font-family: monospace;
+        }
+
+        /* Indicador visual flotante de preparación sobre el video */
+        #prep-countdown-container {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 5;
+            background: rgba(0, 0, 0, 0.75);
+            padding: 20px 40px;
+            border-radius: 12px;
+            text-align: center;
+            border: 2px solid var(--color-primary);
+            pointer-events: none;
+        }
+
+        #prep-countdown-container p {
+            font-size: 1rem;
+            color: var(--color-primary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
         .modal-results {
@@ -317,7 +339,7 @@
         <div class="card" id="setup-panel">
             <div class="form-group">
                 <label for="input-name">Nombre del Alumno</label>
-                <input type="text" id="input-name" value="" required>
+                <input type="text" id="input-name" value="Fernanda Rodríguez" required>
             </div>
             <div class="row">
                 <div class="form-group">
@@ -342,10 +364,9 @@
             <button class="btn" id="btn-start">Iniciar Evaluación</button>
         </div>
 
-        <!-- Feedback de carga e instrucciones -->
+        <!-- Feedback de carga de sensores -->
         <div class="card" id="loading-overlay">
-            <span id="loading-text">Inicializando Sensores IA...</span>
-            <span id="countdown-display" class="countdown-number"></span>
+            <span id="loading-text">Cargando Motores de Visión Artificial Inteligente...</span>
         </div>
 
         <!-- Panel de Ejecución -->
@@ -363,6 +384,12 @@
         <div class="video-box" id="video-container" style="display: none;">
             <video id="webcam" autoplay playsinline muted></video>
             <canvas id="output-canvas"></canvas>
+            
+            <!-- Contador Flotante de Preparación -->
+            <div id="prep-countdown-container">
+                <p>Prepárate en tu lugar</p>
+                <span id="prep-countdown-display" class="countdown-number">5</span>
+            </div>
         </div>
     </div>
 
@@ -399,8 +426,8 @@
             TIEMPO_MAESTRO_TOTAL: 120,
             TIEMPO_VENTANA_POSTURA: 20,
             TIEMPO_RETENCION_REQUERIDO: 5,
-            TOLERANCIA_PORCENTAJE: 0.45,  
-            BASE_MAX_POSICIONES: 15, // Base para calcular el 100%
+            TOLERANCIA_PORCENTAJE: 0.35,  // Regresado con éxito al 25% original
+            BASE_MAX_POSICIONES: 15,
             color_error: '#ff3333',
             color_primary: '#e6b800',
             color_left_node: '#e6b800',   
@@ -567,7 +594,7 @@
             let ab = { x: pA.x - pB.x, y: pA.y - pB.y };
             let cb = { x: pC.x - pB.x, y: pC.y - pB.y };
             let dot = ab.x * cb.x + ab.y * cb.y;
-            let nAB = Math.sqrt(ab.x * ab.x + Math.y * ab.y);
+            let nAB = Math.sqrt(ab.x * ab.x + ab.y * ab.y);
             let nCB = Math.sqrt(cb.x * cb.x + cb.y * cb.y);
             let val = dot / (nAB * nCB);
             if (val > 1) val = 1; if (val < -1) val = -1;
@@ -585,18 +612,18 @@
             return Math.acos(val) * (180 / Math.PI);
         }
 
-        function verificarRango(valor, objetivo, tol) {
-            return valor >= (objetivo - tol) && valor <= (objetivo + tol);
+        function verificarRango(valor, objective, tol) {
+            return valor >= (objective - tol) && valor <= (objective + tol);
         }
 
         const DOM = {
             btnStart: document.getElementById('btn-start'),
             setupPanel: document.getElementById('setup-panel'),
             loadingOverlay: document.getElementById('loading-overlay'),
-            loadingText: document.getElementById('loading-text'),
-            countdownDisplay: document.getElementById('countdown-display'),
             testPanel: document.getElementById('test-panel'),
             videoContainer: document.getElementById('video-container'),
+            prepCountdownContainer: document.getElementById('prep-countdown-container'),
+            prepCountdownDisplay: document.getElementById('prep-countdown-display'),
             txtMaster: document.getElementById('txt-master'),
             txtTarget: document.getElementById('txt-target'),
             txtPrincipal: document.getElementById('txt-principal'),
@@ -628,10 +655,12 @@
                 DOM.videoContainer.classList.remove('mirror');
             }
 
+            // Ocultar configuración y mostrar pantalla de carga de sensores
             DOM.setupPanel.style.display = 'none';
             DOM.loadingOverlay.style.display = 'block';
 
             try {
+                // 1. ACTIVAR LA CÁMARA PRIMERO
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: { 
                         facingMode: estadoApp.camaraSeleccionada, 
@@ -645,11 +674,17 @@
                 DOM.video.onloadedmetadata = async () => {
                     DOM.canvas.width = DOM.video.videoWidth;
                     DOM.canvas.height = DOM.video.videoHeight;
+                    
+                    // 2. ENCIENDE EL CONTENEDOR DE VIDEO DE INMEDIATO (El alumno ya se ve en pantalla)
+                    DOM.loadingOverlay.style.display = 'none';
+                    DOM.videoContainer.style.display = 'block';
+                    
+                    // Inicializar el detector en segundo plano mientras se mira
                     await inicializarPoseDetection();
                 };
 
             } catch (err) {
-                alert("Error crítico de acceso: " + err.message);
+                alert("Error crítico de acceso de hardware: " + err.message);
                 window.location.reload();
             }
         }
@@ -661,31 +696,29 @@
                 modelType: 'full'
             });
 
-            // DISPARO DE INSTRUCCIÓN POR VOZ INICIAL ANTES DEL CONTEO
-            DOM.loadingText.innerText = "¡Prepárate en tu lugar!";
+            // 3. ACTIVAR EL COMANDO DE VOZ CUANDO LA CÁMARA YA SE ESTÁ REPRODUCIENDO
+            DOM.prepCountdownContainer.style.display = 'block';
             hablar("Realiza las posiciones que te voy a pedir a continuación", ejecutarConteoInicial);
         }
 
         function ejecutarConteoInicial() {
             let cuentaRegresiva = 5;
-            DOM.countdownDisplay.innerText = cuentaRegresiva;
+            DOM.prepCountdownDisplay.innerText = cuentaRegresiva;
             
             let timerInicial = setInterval(() => {
                 cuentaRegresiva--;
                 if (cuentaRegresiva > 0) {
-                    DOM.countdownDisplay.innerText = cuentaRegresiva;
+                    DOM.prepCountdownDisplay.innerText = cuentaRegresiva;
                 } else {
                     clearInterval(timerInicial);
+                    DOM.prepCountdownContainer.style.display = 'none';
                     arrancarEvaluacionOficial();
                 }
             }, 1000);
         }
 
         function arrancarEvaluacionOficial() {
-            DOM.loadingOverlay.style.display = 'none';
             DOM.testPanel.style.display = 'block';
-            DOM.videoContainer.style.display = 'block';
-
             estadoApp.catalogoLocal = [...CATALOGO_POSICIONES];
             estadoApp.pruebaActiva = true;
 
@@ -715,8 +748,7 @@
                     DOM.txtPrincipal.innerText = estadoApp.tiempoPrincipalRestante.toFixed(2);
                     DOM.txtPrincipal.style.color = (estadoApp.tiempoPrincipalRestante <= 5) ? CONFIG.color_error : CONFIG.color_primary;
 
-                    // CAMBIO DINÁMICO DE COLOR: No está corriendo -> Amarillo
-                    DOM.txtRetencion.style.color = CONFIG.color_primary;
+                    DOM.txtRetencion.style.color = CONFIG.color_primary; // No corre -> Amarillo
 
                     if (estadoApp.tiempoPrincipalRestante <= 0) {
                         sonarBuzzer();
@@ -728,8 +760,7 @@
                     estadoApp.tiempoRetencionAcumulado += delta;
                     DOM.txtRetencion.innerText = `${estadoApp.tiempoRetencionAcumulado.toFixed(1)}s / 5s`;
 
-                    // CAMBIO DINÁMICO DE COLOR: El contador está corriendo -> Rojo
-                    DOM.txtRetencion.style.color = CONFIG.color_error;
+                    DOM.txtRetencion.style.color = CONFIG.color_error; // Corriendo -> Rojo
 
                     if (estadoApp.tiempoRetencionAcumulado >= CONFIG.TIEMPO_RETENCION_REQUERIDO) {
                         estadoApp.score++;
@@ -763,7 +794,6 @@
             clearInterval(estadoApp.intervaloMaestro);
             if (DOM.video.srcObject) DOM.video.srcObject.getTracks().forEach(t => t.stop());
 
-            // REGLA DE TRES: (Logradas * 100) / 15 con tope en 100%
             let calificacionFinal = Math.min(100, Math.round((estadoApp.score * 100) / CONFIG.BASE_MAX_POSICIONES));
 
             DOM.resStudent.innerText = estadoApp.nombreAlumno;
@@ -779,8 +809,7 @@
             });
             DOM.modalResults.style.display = 'flex';
 
-            // COMANDO DE VOZ FINAL PARAMETRIZADO
-            let locucionFinal = `Prueba finalizada, aquí tienes tu resultado, ${estadoApp.nombreAlumno}. Obtuviste una calificación de ${calificacionFinal} por ciento. Te invito a que lo sigas intentando.`;
+            let locucionFinal = `Prueba finalizada, aquí tienes tu resultado, ${estadoApp.nombreAlumno}. Obtuviste una calificación de ${calificacionFinal}. Te invito a que lo sigas intentando.`;
             hablar(locucionFinal);
         }
 
@@ -792,6 +821,8 @@
 
             if (poses.length > 0) {
                 const kp = poses[0].keypoints;
+                
+                // EXTRAER NODOS PUROS (Se preservan x e y originales para la evaluación matemática)
                 const nodos = {
                     left_hip: kp.find(k => k.name === 'left_hip'),
                     right_hip: kp.find(k => k.name === 'right_hip'),
@@ -811,37 +842,35 @@
                     const canvasWidth = DOM.canvas.width;
                     const canvasHeight = DOM.canvas.height;
 
+                    // CREAR UN MAPA DE COORDENADAS ESCALADAS EXCLUSIVO PARA EL DIBUJO (Evita corromper los datos de entrada)
+                    const dibujoNodos = {};
                     Object.keys(nodos).forEach(key => {
-                        nodos[key].scaledX = (nodos[key].x / videoWidth) * canvasWidth;
-                        nodos[key].scaledY = (nodos[key].y / videoHeight) * canvasHeight;
+                        dibujoNodos[key] = {
+                            x: (nodos[key].x / videoWidth) * canvasWidth,
+                            y: (nodos[key].y / videoHeight) * canvasHeight
+                        };
                     });
 
-                    // DIBUJAR LÍNEAS DEL ESQUELETO CON COLORES DE SEGMENTO ASIGNADOS
+                    // DIBUJAR LÍNEAS DEL ESQUELETO CON RENDIMIENTO SEPARADO
                     ctx.lineWidth = 4;
 
-                    // Segmentos Izquierdos (Amarillo)
-                    dibujarLinea(ctx, nodos.left_hip, nodos.left_knee, CONFIG.color_left_node);
-                    dibujarLinea(ctx, nodos.left_knee, nodos.left_ankle, CONFIG.color_left_node);
-                    dibujarLinea(ctx, nodos.left_ankle, nodos.left_foot, CONFIG.color_left_node);
+                    // Lado Izquierdo (Amarillo)
+                    dibujarLinea(ctx, dibujoNodos.left_hip, dibujoNodos.left_knee, CONFIG.color_left_node);
+                    dibujarLinea(ctx, dibujoNodos.left_knee, dibujoNodos.left_ankle, CONFIG.color_left_node);
+                    dibujarLinea(ctx, dibujoNodos.left_ankle, dibujoNodos.left_foot, CONFIG.color_left_node);
 
-                    // Segmentos Derechos (Celeste)
-                    dibujarLinea(ctx, nodos.right_hip, nodos.right_knee, CONFIG.color_right_node);
-                    dibujarLinea(ctx, nodos.right_knee, nodos.right_ankle, CONFIG.color_right_node);
-                    dibujarLinea(ctx, nodos.right_ankle, nodos.right_foot, CONFIG.color_right_node);
+                    // Lado Derecho (Celeste)
+                    dibujarLinea(ctx, dibujoNodos.right_hip, dibujoNodos.right_knee, CONFIG.color_right_node);
+                    dibujarLinea(ctx, dibujoNodos.right_knee, dibujoNodos.right_ankle, CONFIG.color_right_node);
+                    dibujarLinea(ctx, dibujoNodos.right_ankle, dibujoNodos.right_foot, CONFIG.color_right_node);
 
                     // DIBUJAR NODOS SOBRE LAS LÍNEAS
-                    // Izquierda
-                    dibujarPunto(ctx, nodos.left_hip.scaledX, nodos.left_hip.scaledY, CONFIG.color_left_node);
-                    dibujarPunto(ctx, nodos.left_knee.scaledX, nodos.left_knee.scaledY, CONFIG.color_left_node);
-                    dibujarPunto(ctx, nodos.left_ankle.scaledX, nodos.left_ankle.scaledY, CONFIG.color_left_node);
-                    dibujarPunto(ctx, nodos.left_foot.scaledX, nodos.left_foot.scaledY, CONFIG.color_left_node);
+                    Object.keys(dibujoNodos).forEach(key => {
+                        let colorNodo = key.startsWith('left') ? CONFIG.color_left_node : CONFIG.color_right_node;
+                        dibujarPunto(ctx, dibujoNodos[key].x, dibujoNodos[key].y, colorNodo);
+                    });
 
-                    // Derecha
-                    dibujarPunto(ctx, nodos.right_hip.scaledX, nodos.right_hip.scaledY, CONFIG.color_right_node);
-                    dibujarPunto(ctx, nodos.right_knee.scaledX, nodos.right_knee.scaledY, CONFIG.color_right_node);
-                    dibujarPunto(ctx, nodos.right_ankle.scaledX, nodos.right_ankle.scaledY, CONFIG.color_right_node);
-                    dibujarPunto(ctx, nodos.right_foot.scaledX, nodos.right_foot.scaledY, CONFIG.color_right_node);
-
+                    // EVALUACIÓN DE POSTURA CON DATA INDEPENDIENTE
                     let pxEstatura = calcularDistancia2D(nodos.left_hip, nodos.left_ankle);
                     let factorEscala = pxEstatura / CONFIG.SUJETO_PRUEBA.TALON_A_CADERA;
 
@@ -862,8 +891,8 @@
 
         function dibujarLinea(cCtx, p1, p2, color) {
             cCtx.beginPath();
-            cCtx.moveTo(p1.scaledX, p1.scaledY);
-            cCtx.lineTo(p2.scaledX, p2.scaledY);
+            cCtx.moveTo(p1.x, p1.y);
+            cCtx.lineTo(p2.x, p2.y);
             cCtx.strokeStyle = color;
             cCtx.stroke();
             cCtx.closePath();
