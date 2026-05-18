@@ -20,7 +20,7 @@
             --color-primary: #e6b800; /* Oro Senshi-Kan */
             --color-error: #ff3333;
             
-            /* COLORES CORREGIDOS: Izquierda Amarillo, Derecha Celeste */
+            /* Lado Izquierdo Amarillo, Lado Derecho Celeste */
             --color-left-node: #e6b800;
             --color-right-node: #33ccff;
         }
@@ -171,10 +171,12 @@
             justify-content: center;
         }
 
+        /* Color dinámico inicial de la estabilidad */
         .timer-retencion span {
             color: var(--color-primary);
             font-weight: bold;
             font-size: 0.95rem;
+            transition: color 0.2s ease;
         }
 
         .score-live {
@@ -182,7 +184,6 @@
             font-size: 0.85rem;
         }
 
-        /* CONTENEDOR MULTIMEDIA REESTRUCTURADO */
         .video-box {
             position: relative;
             width: 100%;
@@ -194,7 +195,6 @@
             min-height: 0;
         }
 
-        /* Espejo horizontal controlado dinámicamente */
         .video-box.mirror video, 
         .video-box.mirror canvas {
             transform: scaleX(-1);
@@ -220,16 +220,17 @@
             padding: 15px;
             color: var(--color-primary);
             font-weight: bold;
-            font-size: 0.9rem;
+            font-size: 1.2rem;
             text-transform: uppercase;
             letter-spacing: 1px;
-            animation: pulse 1.5s infinite;
         }
 
-        @keyframes pulse {
-            0% { opacity: 0.5; }
-            50% { opacity: 1; }
-            100% { opacity: 0.5; }
+        .countdown-number {
+            font-size: 4rem;
+            display: block;
+            margin-top: 10px;
+            color: #ffffff;
+            font-family: monospace;
         }
 
         .modal-results {
@@ -270,7 +271,7 @@
 
         .score-final {
             text-align: center;
-            font-size: 2.2rem;
+            font-size: 2.5rem;
             font-weight: bold;
             color: var(--color-primary);
             margin: 5px 0;
@@ -341,14 +342,17 @@
             <button class="btn" id="btn-start">Iniciar Evaluación</button>
         </div>
 
-        <!-- Feedback de carga -->
-        <div class="card" id="loading-overlay">Inicializando Cámara y Sensores IA...</div>
+        <!-- Feedback de carga e instrucciones -->
+        <div class="card" id="loading-overlay">
+            <span id="loading-text">Inicializando Sensores IA...</span>
+            <span id="countdown-display" class="countdown-number"></span>
+        </div>
 
         <!-- Panel de Ejecución -->
         <div class="card" id="test-panel" style="display: none;">
             <div class="dashboard">
                 <div class="timer-master">Tiempo Maestro: <span id="txt-master" style="color:#fff; font-weight:bold;">02:00</span></div>
-                <div class="target-pose" id="txt-target">CONECTANDO CÁMARA...</div>
+                <div class="target-pose" id="txt-target">PREPARANDO...</div>
                 <div class="timer-principal" id="txt-principal">20.00</div>
                 <div class="timer-retencion">Estabilidad <span id="txt-retencion">0.0s / 5s</span></div>
                 <div class="score-live">Posiciones logradas: <strong id="txt-score" style="color: var(--color-primary);">0</strong></div>
@@ -370,9 +374,10 @@
                 <div class="student-name" id="res-student" style="font-size: 1.1rem; font-weight: bold; margin-top: 3px;">---</div>
                 <p id="res-date" style="font-size: 0.75rem; color: var(--color-text-muted);"></p>
             </div>
-            <div class="score-final" id="res-score">0</div>
+            <div class="score-final" id="res-score">0%</div>
+            <p style="text-align: center; font-size: 0.85rem; margin-bottom: 10px; color: var(--color-text-muted);" id="res-total-logradas"></p>
             
-            <div style="max-height: 180px; overflow-y: auto; margin-top: 10px;">
+            <div style="max-height: 150px; overflow-y: auto; margin-top: 10px;">
                 <table class="table-results">
                     <thead>
                         <tr>
@@ -390,16 +395,16 @@
     </div>
 
     <script>
-        // CONFIGURACIÓN CON TOLERANCIA DEL 25% EXPERIMENTAL
         const CONFIG = {
             TIEMPO_MAESTRO_TOTAL: 120,
             TIEMPO_VENTANA_POSTURA: 20,
             TIEMPO_RETENCION_REQUERIDO: 5,
             TOLERANCIA_PORCENTAJE: 0.25,  
+            BASE_MAX_POSICIONES: 15, // Base para calcular el 100%
             color_error: '#ff3333',
             color_primary: '#e6b800',
-            color_left_node: '#e6b800',   // Amarillo para articulaciones izquierdas
-            color_right_node: '#33ccff',  // Celeste para articulaciones derechas
+            color_left_node: '#e6b800',   
+            color_right_node: '#33ccff',  
             SUJETO_PRUEBA: {
                 ESTATURA: 174,
                 TALON_A_CADERA: 100,
@@ -427,6 +432,8 @@
         };
 
         let AudioCtx = null;
+        let detector;
+        let ctx = document.getElementById('output-canvas').getContext('2d');
 
         function inicializarAudio() {
             if (!AudioCtx) {
@@ -455,12 +462,15 @@
             osc.start(); osc.stop(AudioCtx.currentTime + 0.25);
         }
 
-        function hablar(mensaje) {
+        function hablar(mensaje, callback) {
             if ('speechSynthesis' in window) {
                 window.speechSynthesis.cancel();
                 let utterance = new SpeechSynthesisUtterance(mensaje);
                 utterance.lang = 'es-MX';
+                if (callback) utterance.onend = callback;
                 window.speechSynthesis.speak(utterance);
+            } else if (callback) {
+                callback();
             }
         }
 
@@ -557,7 +567,7 @@
             let ab = { x: pA.x - pB.x, y: pA.y - pB.y };
             let cb = { x: pC.x - pB.x, y: pC.y - pB.y };
             let dot = ab.x * cb.x + ab.y * cb.y;
-            let nAB = Math.sqrt(ab.x * ab.x + ab.y * ab.y);
+            let nAB = Math.sqrt(ab.x * ab.x + Math.y * ab.y);
             let nCB = Math.sqrt(cb.x * cb.x + cb.y * cb.y);
             let val = dot / (nAB * nCB);
             if (val > 1) val = 1; if (val < -1) val = -1;
@@ -583,6 +593,8 @@
             btnStart: document.getElementById('btn-start'),
             setupPanel: document.getElementById('setup-panel'),
             loadingOverlay: document.getElementById('loading-overlay'),
+            loadingText: document.getElementById('loading-text'),
+            countdownDisplay: document.getElementById('countdown-display'),
             testPanel: document.getElementById('test-panel'),
             videoContainer: document.getElementById('video-container'),
             txtMaster: document.getElementById('txt-master'),
@@ -594,6 +606,7 @@
             resStudent: document.getElementById('res-student'),
             resDate: document.getElementById('res-date'),
             resScore: document.getElementById('res-score'),
+            resTotalLogradas: document.getElementById('res-total-logradas'),
             resTableBody: document.getElementById('res-table-body'),
             video: document.getElementById('webcam'),
             canvas: document.getElementById('output-canvas')
@@ -604,10 +617,10 @@
         async function iniciarFlujoEvaluacion() {
             inicializarAudio();
             
-            estadoApp.nombreAlumno = document.getElementById('input-name').value.trim() || "Alumno Senshi-Kan";
-            estadoApp.estaturaAlumno = parseFloat(document.getElementById('input-height').value) || 174;
-            estadoApp.guardia = document.getElementById('select-guard').value;
-            estadoApp.camaraSeleccionada = document.getElementById('select-camera').value;
+            estadoApp.nombreAlumno = DOM.setupPanel.querySelector('#input-name').value.trim() || "Alumno";
+            estadoApp.estaturaAlumno = parseFloat(DOM.setupPanel.querySelector('#input-height').value) || 174;
+            estadoApp.guardia = DOM.setupPanel.querySelector('#select-guard').value;
+            estadoApp.camaraSeleccionada = DOM.setupPanel.querySelector('#select-camera').value;
 
             if (estadoApp.camaraSeleccionada === "user") {
                 DOM.videoContainer.classList.add('mirror');
@@ -630,10 +643,8 @@
                 
                 DOM.video.srcObject = stream;
                 DOM.video.onloadedmetadata = async () => {
-                    // CALIBRACIÓN DINÁMICA CRÍTICA: Forzar al canvas a adoptar la resolución nativa de captura
                     DOM.canvas.width = DOM.video.videoWidth;
                     DOM.canvas.height = DOM.video.videoHeight;
-                    
                     await inicializarPoseDetection();
                 };
 
@@ -650,6 +661,27 @@
                 modelType: 'full'
             });
 
+            // DISPARO DE INSTRUCCIÓN POR VOZ INICIAL ANTES DEL CONTEO
+            DOM.loadingText.innerText = "¡Prepárate en tu lugar!";
+            hablar("Realiza las posiciones que te voy a pedir a continuación", ejecutarConteoInicial);
+        }
+
+        function ejecutarConteoInicial() {
+            let cuentaRegresiva = 5;
+            DOM.countdownDisplay.innerText = cuentaRegresiva;
+            
+            let timerInicial = setInterval(() => {
+                cuentaRegresiva--;
+                if (cuentaRegresiva > 0) {
+                    DOM.countdownDisplay.innerText = cuentaRegresiva;
+                } else {
+                    clearInterval(timerInicial);
+                    arrancarEvaluacionOficial();
+                }
+            }, 1000);
+        }
+
+        function arrancarEvaluacionOficial() {
             DOM.loadingOverlay.style.display = 'none';
             DOM.testPanel.style.display = 'block';
             DOM.videoContainer.style.display = 'block';
@@ -683,6 +715,9 @@
                     DOM.txtPrincipal.innerText = estadoApp.tiempoPrincipalRestante.toFixed(2);
                     DOM.txtPrincipal.style.color = (estadoApp.tiempoPrincipalRestante <= 5) ? CONFIG.color_error : CONFIG.color_primary;
 
+                    // CAMBIO DINÁMICO DE COLOR: No está corriendo -> Amarillo
+                    DOM.txtRetencion.style.color = CONFIG.color_primary;
+
                     if (estadoApp.tiempoPrincipalRestante <= 0) {
                         sonarBuzzer();
                         hablar("Siguiente");
@@ -692,6 +727,9 @@
                 } else {
                     estadoApp.tiempoRetencionAcumulado += delta;
                     DOM.txtRetencion.innerText = `${estadoApp.tiempoRetencionAcumulado.toFixed(1)}s / 5s`;
+
+                    // CAMBIO DINÁMICO DE COLOR: El contador está corriendo -> Rojo
+                    DOM.txtRetencion.style.color = CONFIG.color_error;
 
                     if (estadoApp.tiempoRetencionAcumulado >= CONFIG.TIEMPO_RETENCION_REQUERIDO) {
                         estadoApp.score++;
@@ -716,6 +754,7 @@
 
             DOM.txtTarget.innerText = estadoApp.posicionActual.nombre;
             DOM.txtRetencion.innerText = "0.0s / 5s";
+            DOM.txtRetencion.style.color = CONFIG.color_primary;
             hablar(`${estadoApp.posicionActual.nombre}`);
         }
 
@@ -724,9 +763,13 @@
             clearInterval(estadoApp.intervaloMaestro);
             if (DOM.video.srcObject) DOM.video.srcObject.getTracks().forEach(t => t.stop());
 
+            // REGLA DE TRES: (Logradas * 100) / 15 con tope en 100%
+            let calificacionFinal = Math.min(100, Math.round((estadoApp.score * 100) / CONFIG.BASE_MAX_POSICIONES));
+
             DOM.resStudent.innerText = estadoApp.nombreAlumno;
             DOM.resDate.innerText = new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
-            DOM.resScore.innerText = estadoApp.score;
+            DOM.resScore.innerText = `${calificacionFinal}%`;
+            DOM.resTotalLogradas.innerText = `${estadoApp.score} de 15 posiciones requeridas`;
 
             DOM.resTableBody.innerHTML = "";
             estadoApp.historialResultados.forEach(res => {
@@ -735,16 +778,16 @@
                 DOM.resTableBody.appendChild(f);
             });
             DOM.modalResults.style.display = 'flex';
-        }
 
-        let detector;
-        let ctx = DOM.canvas.getContext('2d');
+            // COMANDO DE VOZ FINAL PARAMETRIZADO
+            let locucionFinal = `Prueba finalizada, aquí tienes tu resultado, ${estadoApp.nombreAlumno}. Obtuviste una calificación de ${calificacionFinal} por ciento. Te invito a que lo sigas intentando.`;
+            hablar(locucionFinal);
+        }
 
         async function detectarFrame() {
             if (!estadoApp.pruebaActiva) return;
 
             const poses = await detector.estimatePoses(DOM.video, { flipHorizontal: false });
-            
             ctx.clearRect(0, 0, DOM.canvas.width, DOM.canvas.height);
 
             if (poses.length > 0) {
@@ -768,20 +811,32 @@
                     const canvasWidth = DOM.canvas.width;
                     const canvasHeight = DOM.canvas.height;
 
-                    // Mapeo absoluto uno a uno
                     Object.keys(nodos).forEach(key => {
                         nodos[key].scaledX = (nodos[key].x / videoWidth) * canvasWidth;
                         nodos[key].scaledY = (nodos[key].y / videoHeight) * canvasHeight;
                     });
 
-                    // DIBUJO CON COLORES ASIGNADOS CORRECTAMENTE
-                    // Nodos Izquierdos -> Amarillo
+                    // DIBUJAR LÍNEAS DEL ESQUELETO CON COLORES DE SEGMENTO ASIGNADOS
+                    ctx.lineWidth = 4;
+
+                    // Segmentos Izquierdos (Amarillo)
+                    dibujarLinea(ctx, nodos.left_hip, nodos.left_knee, CONFIG.color_left_node);
+                    dibujarLinea(ctx, nodos.left_knee, nodos.left_ankle, CONFIG.color_left_node);
+                    dibujarLinea(ctx, nodos.left_ankle, nodos.left_foot, CONFIG.color_left_node);
+
+                    // Segmentos Derechos (Celeste)
+                    dibujarLinea(ctx, nodos.right_hip, nodos.right_knee, CONFIG.color_right_node);
+                    dibujarLinea(ctx, nodos.right_knee, nodos.right_ankle, CONFIG.color_right_node);
+                    dibujarLinea(ctx, nodos.right_ankle, nodos.right_foot, CONFIG.color_right_node);
+
+                    // DIBUJAR NODOS SOBRE LAS LÍNEAS
+                    // Izquierda
                     dibujarPunto(ctx, nodos.left_hip.scaledX, nodos.left_hip.scaledY, CONFIG.color_left_node);
                     dibujarPunto(ctx, nodos.left_knee.scaledX, nodos.left_knee.scaledY, CONFIG.color_left_node);
                     dibujarPunto(ctx, nodos.left_ankle.scaledX, nodos.left_ankle.scaledY, CONFIG.color_left_node);
                     dibujarPunto(ctx, nodos.left_foot.scaledX, nodos.left_foot.scaledY, CONFIG.color_left_node);
 
-                    // Nodos Derechas -> Celeste
+                    // Derecha
                     dibujarPunto(ctx, nodos.right_hip.scaledX, nodos.right_hip.scaledY, CONFIG.color_right_node);
                     dibujarPunto(ctx, nodos.right_knee.scaledX, nodos.right_knee.scaledY, CONFIG.color_right_node);
                     dibujarPunto(ctx, nodos.right_ankle.scaledX, nodos.right_ankle.scaledY, CONFIG.color_right_node);
@@ -805,12 +860,21 @@
             requestAnimationFrame(detectarFrame);
         }
 
+        function dibujarLinea(cCtx, p1, p2, color) {
+            cCtx.beginPath();
+            cCtx.moveTo(p1.scaledX, p1.scaledY);
+            cCtx.lineTo(p2.scaledX, p2.scaledY);
+            cCtx.strokeStyle = color;
+            cCtx.stroke();
+            cCtx.closePath();
+        }
+
         function dibujarPunto(cCtx, sX, sY, color) {
             cCtx.beginPath();
-            cCtx.arc(sX, sY, 8, 0, 2 * Math.PI);
+            cCtx.arc(sX, sY, 7, 0, 2 * Math.PI);
             cCtx.fillStyle = color;
             cCtx.fill();
-            cCtx.lineWidth = 2;
+            cCtx.lineWidth = 1.5;
             cCtx.strokeStyle = '#ffffff';
             cCtx.stroke();
             cCtx.closePath();
