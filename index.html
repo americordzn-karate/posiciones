@@ -174,7 +174,11 @@
     </div>
 
     <script>
-        // CONFIGURACIÓN DE ENDPOINTS Y MODELOS
+        // Ajuste de Entrada: Silenciar advertencias redundantes en consola
+        if (typeof tf !== 'undefined') {
+            tf.env().set('PROD', true);
+        }
+
         const URL_API_SHEETS = "https://script.google.com/macros/s/AKfycbybcoO_h2T_0P6X-mX336X8i9616Xm7ImsiQun9R6V-U0OOf6rL6gY8T1bH2R8y6qg/exec";
         const FACE_MODELS_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
 
@@ -249,9 +253,8 @@
             loadingText: document.getElementById('loading-text'), btnBypass: document.getElementById('btn-bypass')
         };
 
-        // FASE 1: ARRANQUE AISLADO PARA ESCANEO BIOMÉTRICO (SIN TFJS)
+        // FASE 1: CONEXIÓN ROBUSTA CON GOOGLE APPS SCRIPTS (Manejo explícito de CORS y Redirecciones)
         window.addEventListener('DOMContentLoaded', async () => {
-            // Cargar caché previa si existe
             let nombreGuardado = localStorage.getItem('senshikan_last_student');
             if (nombreGuardado && nombreGuardado !== "Escaneando rostro en cámara...") document.getElementById('input-name').value = nombreGuardado;
             let estaturaGuardada = localStorage.getItem('senshikan_last_height');
@@ -261,17 +264,19 @@
                 DOM.loadingOverlay.style.display = 'block';
                 DOM.loadingText.innerText = "Cargando Redes de Reconocimiento Facial...";
                 
-                // Cargar modelos de rostros de forma nativa e independiente
                 await faceapi.nets.tinyFaceDetector.loadFromUri(FACE_MODELS_URL);
                 await faceapi.nets.faceLandmark68Net.loadFromUri(FACE_MODELS_URL);
                 await faceapi.nets.faceRecognitionNet.loadFromUri(FACE_MODELS_URL);
 
                 DOM.loadingText.innerText = "Sincronizando Padrón de Atletas...";
-                const controladorAbort = new AbortController();
-                const timeoutId = setTimeout(() => controladorAbort.abort(), 4500); // Límite estricto de red
-
-                const respuesta = await fetch(URL_API_SHEETS, { signal: controladorAbort.signal });
-                clearTimeout(timeoutId);
+                
+                // Solución al error CORS: Forzar modo de redirección cruzada transparente
+                const respuesta = await fetch(URL_API_SHEETS, { 
+                    method: 'GET',
+                    mode: 'cors',
+                    credentials: 'omit',
+                    headers: { 'Accept': 'application/json' }
+                });
 
                 if (!respuesta.ok) throw new Error("API No Disponible");
                 baseDatosAlumnos = await respuesta.json();
@@ -291,13 +296,12 @@
                     DOM.loadingOverlay.style.display = 'none';
                     DOM.setupPanel.style.display = 'block';
                     
-                    // Arrancar cámara EXCLUSIVAMENTE para reconocimiento de rostro
                     ejecutarCamaraFaseBiometrica();
                 } else {
                     throw new Error("Sin firmas válidas");
                 }
             } catch (err) {
-                console.warn("Pasando a modo manual controlado:", err);
+                console.warn("Modo de contingencia automático activado:", err);
                 liberarCamposModoManual();
             }
         });
@@ -320,7 +324,6 @@
                         return;
                     }
 
-                    // Detección nativa ultra rápida por CPU/GPU nativo
                     const analisis = await faceapi.detectSingleFace(DOM.video, new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.5 }))
                         .withFaceLandmarks()
                         .withFaceDescriptor();
@@ -388,7 +391,7 @@
 
         async function iniciarFlujoEvaluacion() {
             inicializarAudio();
-            apagarFlujoCamaraActual(); // Asegurar que la cámara previa esté 100% muerta
+            apagarFlujoCamaraActual();
             
             estadoApp.nombreAlumno = document.getElementById('input-name').value.trim() || "Alumno";
             estadoApp.estaturaAlumno = parseFloat(document.getElementById('input-height').value) || 174;
@@ -403,18 +406,15 @@
             DOM.loadingText.innerText = "Encendiendo Sensores de Visión Artificial Corporal (TFJS)...";
 
             try {
-                // 1. Inicializar el backend WebGL de TensorFlow de forma segura ahora que face-api terminó
                 await tf.ready();
                 await tf.setBackend('webgl');
 
-                // 2. Levantar el detector corporal BlazePose
                 detector = await poseDetection.createDetector(poseDetection.SupportedModels.BlazePose, {
                     runtime: 'mediapipe',
                     solutionPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/pose',
                     modelType: 'full'
                 });
 
-                // 3. Solicitar la cámara definitiva elegida para la prueba física
                 streamActivo = await navigator.mediaDevices.getUserMedia({
                     video: { facingMode: estadoApp.camaraSeleccionada, width: { ideal: 640 }, height: { ideal: 480 } },
                     audio: false
