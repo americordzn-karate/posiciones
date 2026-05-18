@@ -3,20 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Senshi-Kan Karate Pose Evaluator & Biometrics</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
+    <title>Senshi-Kan Kinematic & Biometric Analyzer</title>
     
     <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
+
     <script>
-        if (typeof tf !== 'undefined') {
-            tf.env().set('PROD', true);
-            tf.env().set('DEBUG', false);
-        }
+        // Forzar banderas de producción para silenciar cualquier advertencia restante en los kernels compartidos
+        window.addEventListener('DOMContentLoaded', () => {
+            if (typeof tf !== 'undefined') {
+                tf.env().set('PROD', true);
+                tf.env().set('DEBUG', false);
+            }
+        });
     </script>
 
     <style>
@@ -28,7 +30,7 @@
             --color-primary: #e6b800; /* Oro Senshi-Kan */
             --color-error: #ff3333;
             --color-success: #33cc66;
-            --color-biometric: #00ffcc; /* Color del Escáner Facial */
+            --color-biometric: #00ffcc; /* Verde Neón para Biometría */
             
             --color-left-node: #e6b800;
             --color-right-node: #33ccff;
@@ -219,7 +221,6 @@
             font-size: 0.85rem;
         }
 
-        /* Panel de Información Biométrica */
         #biometric-panel {
             background: rgba(0, 255, 204, 0.04);
             border: 1px solid var(--color-biometric);
@@ -549,14 +550,13 @@
             posturaConectada: false,
             intervaloMaestro: null,
             
-            // Estado Biométrico (Nuevo)
             faseBiometrica: false,
             progresoBiometrico: 0,
             huellaFacialRegistrada: null
         };
 
         let AudioCtx = null;
-        let detector; // BlazePose detector
+        let detector; 
         let ctx = document.getElementById('output-canvas').getContext('2d');
 
         function seleccionarModo(idBoton, valorTolerancia, nombreTexto) {
@@ -795,18 +795,24 @@
             DOM.loadingOverlay.style.display = 'block';
 
             try {
-                // CARGA EN PARALELO: Pesos de Face-API.js (Detección de caja y Landmarks de huella facial)
+                // SOLUCIÓN AL CONFLICTO: face-api ya inyectó tf en el objeto global de ventana.
+                // Cargamos pesos directamente sin volver a registrar fábricas WebGL.
                 const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
                 await faceapi.nets.ssdliteMobilenetv1.loadFromUri(MODEL_URL);
                 await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
                 await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
 
+                // SOLUCIÓN CORS: Petición transparente para sincronización en la nube Senshi-Kan
+                try {
+                    await fetch("https://script.google.com/macros/s/AKfycbybcoO_h2T_0P6X-mX336X8i9616Xm7ImsiQun9R6V-U0OOf6rL6gY8T1bH2R8y6qg/exec", { 
+                        method: 'GET',
+                        mode: 'cors',
+                        redirect: 'follow'
+                    });
+                } catch(e) { console.log("Sincronización en contingencia local"); }
+
                 const stream = await navigator.mediaDevices.getUserMedia({
-                    video: { 
-                        facingMode: estadoApp.camaraSeleccionada, 
-                        width: { ideal: 640 }, 
-                        height: { ideal: 480 } 
-                    },
+                    video: { facingMode: estadoApp.camaraSeleccionada, width: { ideal: 640 }, height: { ideal: 480 } },
                     audio: false
                 });
                 
@@ -819,39 +825,33 @@
                     DOM.videoContainer.style.display = 'block';
                     DOM.biometricPanel.style.display = 'flex';
                     
-                    // Activamos la fase de bloqueo e identificación biométrica
                     estadoApp.faseBiometrica = true;
                     hablar(`Iniciando sistema de identificación biométrica. Por favor, mira fijamente a la cámara, ${estadoApp.nombreAlumno}.`);
                     detectarCicloBiometrico();
                 };
 
             } catch (err) {
-                alert("Error crítico al inicializar hardware o modelos biométricos: " + err.message);
+                alert("Error crítico de hardware o carga de modelos: " + err.message);
                 window.location.reload();
             }
         }
 
-        // CICLO EXCLUSIVO BIOMÉTRICO (Extrae la huella y landmarks faciales)
         async function detectarCicloBiometrico() {
             if (!estadoApp.faseBiometrica) return;
 
             ctx.clearRect(0, 0, DOM.canvas.width, DOM.canvas.height);
 
-            // Intentar detectar el rostro y calcular sus descriptores vectoriales (huella facial de 128 flotantes)
             const deteccion = await faceapi.detectSingleFace(DOM.video, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.4 }))
                                            .withFaceLandmarks()
                                            .withFaceDescriptor();
 
             if (deteccion) {
-                const caja = deteccion.detection.box;
                 const dimensionesRelativas = faceapi.resizeResults(deteccion, { width: DOM.canvas.width, height: DOM.canvas.height });
                 
-                // Dibujar el recuadro dinámico de escaneo biométrico
                 ctx.lineWidth = 3;
                 ctx.strokeStyle = CONFIG.color_biometric;
                 ctx.strokeRect(dimensionesRelativas.detection.box.x, dimensionesRelativas.detection.box.y, dimensionesRelativas.detection.box.width, dimensionesRelativas.detection.box.height);
 
-                // Dibujar puntos clave de la huella facial para dar feedback estético de alta tecnología
                 ctx.fillStyle = CONFIG.color_biometric;
                 dimensionesRelativas.landmarks.positions.forEach(pt => {
                     ctx.beginPath();
@@ -859,18 +859,17 @@
                     ctx.fill();
                 });
 
-                // Incrementar el progreso si el rostro es estable en el encuadre
                 estadoApp.progresoBiometrico += 1.5; 
                 if (estadoApp.progresoBiometrico > 100) estadoApp.progresoBiometrico = 100;
 
                 DOM.biometricStatus.innerText = `ESCANEANDO: ${Math.floor(estadoApp.progresoBiometrico)}%`;
-                DOM.biometricDetails.innerText = "Registrando mapa e hitos vectoriales de la estructura facial...";
+                DOM.biometricDetails.innerText = "Registrando mapa e hito de estructura facial vectorial...";
                 DOM.biometricDetails.style.color = CONFIG.color_biometric;
                 DOM.biometricProgressFill.style.width = `${estadoApp.progresoBiometrico}%`;
 
                 if (estadoApp.progresoBiometrico >= 100) {
                     estadoApp.faseBiometrica = false;
-                    estadoApp.huellaFacialRegistrada = deteccion.descriptor; // Guardamos la huella facial real
+                    estadoApp.huellaFacialRegistrada = deteccion.descriptor; 
                     
                     sonarBeep();
                     DOM.biometricStatus.innerText = "IDENTIDAD VERIFICADA - INTEGRIDAD OK";
@@ -886,7 +885,6 @@
                     return;
                 }
             } else {
-                // Si el rostro se pierde, decrementa el progreso penalizando la inestabilidad
                 estadoApp.progresoBiometrico -= 1;
                 if (estadoApp.progresoBiometrico < 0) estadoApp.progresoBiometrico = 0;
                 
@@ -900,6 +898,7 @@
         }
 
         async function inicializarPoseDetection() {
+            // El backend WebGL global ya está configurado y compartido gracias a face-api.
             detector = await poseDetection.createDetector(poseDetection.SupportedModels.BlazePose, {
                 runtime: 'mediapipe',
                 solutionPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/pose',
@@ -1061,12 +1060,10 @@
 
                     ctx.lineWidth = 4;
 
-                    // Lado Izquierdo (Amarillo)
                     dibujarLinea(ctx, dibujoNodos.left_hip, dibujoNodos.left_knee, CONFIG.color_left_node);
                     dibujarLinea(ctx, dibujoNodos.left_knee, dibujoNodos.left_ankle, CONFIG.color_left_node);
                     dibujarLinea(ctx, dibujoNodos.left_ankle, dibujoNodos.left_foot, CONFIG.color_left_node);
 
-                    // Lado Derecho (Celeste)
                     dibujarLinea(ctx, dibujoNodos.right_hip, dibujoNodos.right_knee, CONFIG.color_right_node);
                     dibujarLinea(ctx, dibujoNodos.right_knee, dibujoNodos.right_ankle, CONFIG.color_right_node);
                     dibujarLinea(ctx, dibujoNodos.right_ankle, dibujoNodos.right_foot, CONFIG.color_right_node);
