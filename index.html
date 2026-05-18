@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Senshi-Kan Karate Evaluador de Posiciones</title>
+    <title>Senshi-Kan Karate Pose Evaluator</title>
     <!-- MediaPipe y TensorFlow.js -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter"></script>
@@ -113,7 +113,6 @@
             flex: 1;
         }
 
-        /* Contenedor de modos de nivel */
         .mode-selector {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -365,19 +364,18 @@
         <!-- Panel de Configuración Inicial -->
         <div class="card" id="setup-panel">
             
-            <!-- Selector de Modos de Tolerancia / Competencia -->
+            <!-- Selector de Modos (Etiquetas limpias sin porcentajes) -->
             <div class="form-group">
                 <label>Modo de Competencia</label>
                 <div class="mode-selector">
-                    <button type="button" class="btn-mode active" id="mode-principiante" onclick="seleccionarModo('principiante', 0.50)">Principiante (50%)</button>
-                    <button type="button" class="btn-mode" id="mode-intermedio" onclick="seleccionarModo('intermedio', 0.35)">Intermedio (35%)</button>
-                    <button type="button" class="btn-mode" id="mode-avanzado" onclick="seleccionarModo('avanzado', 0.20)">Avanzado (20%)</button>
+                    <button type="button" class="btn-mode active" id="mode-principiante" onclick="seleccionarModo('principiante', 0.50, 'Principiante')">Principiante</button>
+                    <button type="button" class="btn-mode" id="mode-intermedio" onclick="seleccionarModo('intermedio', 0.35, 'Intermedio')">Intermedio</button>
+                    <button type="button" class="btn-mode" id="mode-avanzado" onclick="seleccionarModo('avanzado', 0.20, 'Avanzado')">Avanzado</button>
                 </div>
             </div>
 
             <div class="form-group">
                 <label for="input-name">Nombre del Alumno</label>
-                <!-- default vacío -->
                 <input type="text" id="input-name" placeholder="Escribe tu nombre aquí..." required>
             </div>
             
@@ -425,7 +423,6 @@
             <video id="webcam" autoplay playsinline muted></video>
             <canvas id="output-canvas"></canvas>
             
-            <!-- Contador Flotante de Preparación -->
             <div id="prep-countdown-container">
                 <p>Prepárate en tu lugar</p>
                 <span id="prep-countdown-display" class="countdown-number">5</span>
@@ -439,7 +436,9 @@
             <div class="results-header">
                 <h2>Evaluación Finalizada</h2>
                 <div class="student-name" id="res-student" style="font-size: 1.1rem; font-weight: bold; margin-top: 3px;">---</div>
-                <p id="res-date" style="font-size: 0.75rem; color: var(--color-text-muted);"></p>
+                <!-- Sección añadida para registrar el modo de competencia -->
+                <div id="res-mode" style="font-size: 0.85rem; color: var(--color-primary); font-weight: bold; text-transform: uppercase; margin-top: 2px;">MODO: ---</div>
+                <p id="res-date" style="font-size: 0.75rem; color: var(--color-text-muted); margin-top: 3px;"></p>
             </div>
             <div class="score-final" id="res-score">0%</div>
             <p style="text-align: center; font-size: 0.85rem; margin-bottom: 10px; color: var(--color-text-muted);" id="res-total-logradas"></p>
@@ -456,7 +455,6 @@
                 </table>
             </div>
 
-            <!-- Modificado por petición del Sensei -->
             <div class="slogan">ACADEMIA DE KARATE SENSHI-KAN<br>"VENCE TUS LÍMITES"</div>
             <button class="btn" style="margin-top: 15px;" id="btn-restart-app">Reiniciar</button>
         </div>
@@ -467,7 +465,7 @@
             TIEMPO_MAESTRO_TOTAL: 120,
             TIEMPO_VENTANA_POSTURA: 20,
             TIEMPO_RETENCION_REQUERIDO: 5,
-            TOLERANCIA_PORCENTAJE: 0.50, // Iniciado por defecto en Principiante
+            TOLERANCIA_PORCENTAJE: 0.50, 
             BASE_MAX_POSICIONES: 15,
             color_error: '#ff3333',
             color_primary: '#e6b800',
@@ -487,6 +485,7 @@
             estaturaAlumno: 174,
             guardia: "izquierdo",
             camaraSeleccionada: "user",
+            modoTextoActual: "Principiante", // Guardado de cadena para interactuar con la voz y el modal
             tiempoMaestroRestante: CONFIG.TIEMPO_MAESTRO_TOTAL,
             tiempoPrincipalRestante: CONFIG.TIEMPO_VENTANA_POSTURA,
             tiempoRetencionAcumulado: 0,
@@ -503,8 +502,9 @@
         let detector;
         let ctx = document.getElementById('output-canvas').getContext('2d');
 
-        function seleccionarModo(idBoton, valorTolerancia) {
+        function seleccionarModo(idBoton, valorTolerancia, nombreTexto) {
             CONFIG.TOLERANCIA_PORCENTAJE = valorTolerancia;
+            estadoApp.modoTextoActual = nombreTexto;
             document.querySelectorAll('.btn-mode').forEach(btn => btn.classList.remove('active'));
             document.getElementById(`mode-${idBoton}`).classList.add('active');
         }
@@ -552,6 +552,7 @@
             {
                 id: "HeisokuDachi",
                 nombre: "Heisoku Dachi",
+                nombreAudio: "Heisoku Dachi",
                 evaluar: (nodos, factorEscala) => {
                     let distTalones = calcularDistancia2D(nodos.left_ankle, nodos.right_ankle);
                     let maxDist = (CONFIG.SUJETO_PRUEBA.TALON_A_PUNTA * 0.8) * factorEscala;
@@ -563,6 +564,7 @@
             {
                 id: "MusubiDachi",
                 nombre: "Musubi Dachi",
+                nombreAudio: "Musubi Dachi",
                 evaluar: (nodos, factorEscala) => {
                     let distTalones = calcularDistancia2D(nodos.left_ankle, nodos.right_ankle);
                     let maxDist = (CONFIG.SUJETO_PRUEBA.TALON_A_PUNTA * 0.9) * factorEscala;
@@ -573,6 +575,7 @@
             {
                 id: "HeikoDachi",
                 nombre: "Heiko Dachi",
+                nombreAudio: "Heiko Dachi",
                 evaluar: (nodos, factorEscala) => {
                     let distTalones = calcularDistancia2D(nodos.left_ankle, nodos.right_ankle);
                     let distEsperada = CONFIG.SUJETO_PRUEBA.ANCHO_CADERAS * factorEscala;
@@ -582,6 +585,7 @@
             {
                 id: "HachiyiDachi",
                 nombre: "Hachiji Dachi",
+                nombreAudio: "Hachiji Dachi",
                 evaluar: (nodos, factorEscala) => {
                     let distTalones = calcularDistancia2D(nodos.left_ankle, nodos.right_ankle);
                     let distEsperada = CONFIG.SUJETO_PRUEBA.ANCHO_CADERAS * factorEscala;
@@ -592,6 +596,7 @@
             {
                 id: "NaifanchinDachi",
                 nombre: "Naifanchin Dachi",
+                nombreAudio: "Naifanchin Dachi",
                 evaluar: (nodos, factorEscala) => {
                     let rIzq = calcularAngulo(nodos.left_hip, nodos.left_knee, nodos.left_ankle);
                     let rDer = calcularAngulo(nodos.right_hip, nodos.right_knee, nodos.right_ankle);
@@ -601,6 +606,7 @@
             {
                 id: "ShikoDachi",
                 nombre: "Shiko Dachi",
+                nombreAudio: "Shiko Dachi",
                 evaluar: (nodos, factorEscala) => {
                     let distTalones = calcularDistancia2D(nodos.left_ankle, nodos.right_ankle);
                     let distEsperada = 90 * factorEscala;
@@ -612,6 +618,7 @@
             {
                 id: "MotoDachi",
                 nombre: "Moto Dachi",
+                nombreAudio: "Moto Dachi Lateral", // Añadido "Lateral" por requerimiento espacial
                 evaluar: (nodos, factorEscala) => {
                     let esIzq = (estadoApp.guardia === "izquierdo");
                     let rDelantera = esIzq ? calcularAngulo(nodos.left_hip, nodos.left_knee, nodos.left_ankle) : calcularAngulo(nodos.right_hip, nodos.right_knee, nodos.right_ankle);
@@ -623,6 +630,7 @@
             {
                 id: "ZenkutsuDachi",
                 nombre: "Zenkutsu Dachi",
+                nombreAudio: "Zenkutsu Dachi Lateral", // Añadido "Lateral" por requerimiento espacial
                 evaluar: (nodos, factorEscala) => {
                     let esIzq = (estadoApp.guardia === "izquierdo");
                     let rDelantera = esIzq ? calcularAngulo(nodos.left_hip, nodos.left_knee, nodos.left_ankle) : calcularAngulo(nodos.right_hip, nodos.right_knee, nodos.right_ankle);
@@ -641,7 +649,7 @@
             let ab = { x: pA.x - pB.x, y: pA.y - pB.y };
             let cb = { x: pC.x - pB.x, y: pC.y - pB.y };
             let dot = ab.x * cb.x + ab.y * cb.y;
-            let nAB = Math.sqrt(ab.x * ab.x + ab.y * ab.y);
+            let nAB = Math.sqrt(ab.x * ab.x + Math.y * ab.y);
             let nCB = Math.sqrt(cb.x * cb.x + cb.y * cb.y);
             let val = dot / (nAB * nCB);
             if (val > 1) val = 1; if (val < -1) val = -1;
@@ -678,6 +686,7 @@
             txtScore: document.getElementById('txt-score'),
             modalResults: document.getElementById('modal-results'),
             resStudent: document.getElementById('res-student'),
+            resMode: document.getElementById('res-mode'),
             resDate: document.getElementById('res-date'),
             resScore: document.getElementById('res-score'),
             resTotalLogradas: document.getElementById('res-total-logradas'),
@@ -687,7 +696,6 @@
             btnRestartApp: document.getElementById('btn-restart-app')
         };
 
-        // Al cargar la página, recuperar el nombre si existe guardado
         window.addEventListener('DOMContentLoaded', () => {
             let nombreGuardado = localStorage.getItem('senshikan_last_student');
             if (nombreGuardado) {
@@ -697,7 +705,6 @@
 
         DOM.btnStart.addEventListener('click', iniciarFlujoEvaluacion);
         DOM.btnRestartApp.addEventListener('click', () => {
-            // Guardar el nombre actual antes de reiniciar la ventana
             let actualNombre = DOM.setupPanel.querySelector('#input-name').value.trim();
             if (actualNombre) {
                 localStorage.setItem('senshikan_last_student', actualNombre);
@@ -713,7 +720,6 @@
             estadoApp.guardia = DOM.setupPanel.querySelector('#select-guard').value;
             estadoApp.camaraSeleccionada = DOM.setupPanel.querySelector('#select-camera').value;
 
-            // Guardar en persistencia local para el reinicio
             localStorage.setItem('senshikan_last_student', estadoApp.nombreAlumno);
 
             if (estadoApp.camaraSeleccionada === "user") {
@@ -760,7 +766,9 @@
             });
 
             DOM.prepCountdownContainer.style.display = 'block';
-            hablar("Realiza las posiciones que te voy a pedir a continuación", ejecutarConteoInicial);
+            
+            // Comando de voz inicial modificado para incluir dinámicamente el modo seleccionado
+            hablar(`Realiza las posiciones que te voy a pedir a continuación en modo ${estadoApp.modoTextoActual}`, ejecutarConteoInicial);
         }
 
         function ejecutarConteoInicial() {
@@ -848,7 +856,9 @@
             DOM.txtTarget.innerText = estadoApp.posicionActual.nombre;
             DOM.txtRetencion.innerText = "0.0s / 5s";
             DOM.txtRetencion.style.color = CONFIG.color_primary;
-            hablar(`${estadoApp.posicionActual.nombre}`);
+            
+            // Ejecuta el audio con el nombre modificado si requiere orientación lateral
+            hablar(`${estadoApp.posicionActual.nombreAudio}`);
         }
 
         function finalizarPruebaGlobal() {
@@ -859,6 +869,8 @@
             let calificacionFinal = Math.min(100, Math.round((estadoApp.score * 100) / CONFIG.BASE_MAX_POSICIONES));
 
             DOM.resStudent.innerText = estadoApp.nombreAlumno;
+            // Incluye de manera explícita el modo de competencia en el contenedor del modal
+            DOM.resMode.innerText = `MODO: ${estadoApp.modoTextoActual}`;
             DOM.resDate.innerText = new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
             DOM.resScore.innerText = `${calificacionFinal}%`;
             DOM.resTotalLogradas.innerText = `${estadoApp.score} de 15 posiciones requeridas`;
@@ -871,7 +883,7 @@
             });
             DOM.modalResults.style.display = 'flex';
 
-            let locucionFinal = `Prueba finalizada, aquí tienes tu resultado, ${estadoApp.nombreAlumno}. Obtuviste una calificación de ${calificacionFinal}. Te invito a que lo sigas intentando.`;
+            let locucionFinal = `Prueba finalizada en modo ${estadoApp.modoTextoActual}. Aquí tienes tu resultado, ${estadoApp.nombreAlumno}. Obtuviste una calificación de ${calificacionFinal}. Te invito a que lo sigas intentando.`;
             hablar(locucionFinal);
         }
 
