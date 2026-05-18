@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Senshi-Kan Karate Pose Evaluator</title>
+    <title>Senshi-Kan Karate Evaluador de Posiciones</title>
     <!-- MediaPipe y TensorFlow.js -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter"></script>
@@ -111,6 +111,34 @@
 
         .row .form-group {
             flex: 1;
+        }
+
+        /* Contenedor de modos de nivel */
+        .mode-selector {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+
+        .btn-mode {
+            background-color: #222;
+            color: var(--color-text-muted);
+            border: 1px solid #444;
+            padding: 8px 4px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-mode.active {
+            background-color: var(--color-primary);
+            color: #000;
+            border-color: var(--color-primary);
+            box-shadow: 0 0 8px rgba(230, 184, 0, 0.3);
         }
 
         .btn {
@@ -232,7 +260,6 @@
             font-family: monospace;
         }
 
-        /* Indicador visual flotante de preparación sobre el video */
         #prep-countdown-container {
             display: none;
             position: absolute;
@@ -240,7 +267,7 @@
             left: 50%;
             transform: translate(-50%, -50%);
             z-index: 5;
-            background: rgba(0, 0, 0, 0.75);
+            background: rgba(0, 0, 0, 0.8);
             padding: 20px 40px;
             border-radius: 12px;
             text-align: center;
@@ -337,10 +364,23 @@
     <div class="container">
         <!-- Panel de Configuración Inicial -->
         <div class="card" id="setup-panel">
+            
+            <!-- Selector de Modos de Tolerancia / Competencia -->
+            <div class="form-group">
+                <label>Modo de Competencia</label>
+                <div class="mode-selector">
+                    <button type="button" class="btn-mode active" id="mode-principiante" onclick="seleccionarModo('principiante', 0.50)">Principiante (50%)</button>
+                    <button type="button" class="btn-mode" id="mode-intermedio" onclick="seleccionarModo('intermedio', 0.35)">Intermedio (35%)</button>
+                    <button type="button" class="btn-mode" id="mode-avanzado" onclick="seleccionarModo('avanzado', 0.20)">Avanzado (20%)</button>
+                </div>
+            </div>
+
             <div class="form-group">
                 <label for="input-name">Nombre del Alumno</label>
-                <input type="text" id="input-name" value="Fernanda Rodríguez" required>
+                <!-- default vacío -->
+                <input type="text" id="input-name" placeholder="Escribe tu nombre aquí..." required>
             </div>
+            
             <div class="row">
                 <div class="form-group">
                     <label for="input-height">Estatura (cm)</label>
@@ -416,8 +456,9 @@
                 </table>
             </div>
 
+            <!-- Modificado por petición del Sensei -->
             <div class="slogan">ACADEMIA DE KARATE SENSHI-KAN<br>"VENCE TUS LÍMITES"</div>
-            <button class="btn" style="margin-top: 15px;" onclick="window.location.reload();">Reiniciar</button>
+            <button class="btn" style="margin-top: 15px;" id="btn-restart-app">Reiniciar</button>
         </div>
     </div>
 
@@ -426,7 +467,7 @@
             TIEMPO_MAESTRO_TOTAL: 120,
             TIEMPO_VENTANA_POSTURA: 20,
             TIEMPO_RETENCION_REQUERIDO: 5,
-            TOLERANCIA_PORCENTAJE: 0.35,  // Regresado con éxito al 25% original
+            TOLERANCIA_PORCENTAJE: 0.50, // Iniciado por defecto en Principiante
             BASE_MAX_POSICIONES: 15,
             color_error: '#ff3333',
             color_primary: '#e6b800',
@@ -461,6 +502,12 @@
         let AudioCtx = null;
         let detector;
         let ctx = document.getElementById('output-canvas').getContext('2d');
+
+        function seleccionarModo(idBoton, valorTolerancia) {
+            CONFIG.TOLERANCIA_PORCENTAJE = valorTolerancia;
+            document.querySelectorAll('.btn-mode').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`mode-${idBoton}`).classList.add('active');
+        }
 
         function inicializarAudio() {
             if (!AudioCtx) {
@@ -636,10 +683,27 @@
             resTotalLogradas: document.getElementById('res-total-logradas'),
             resTableBody: document.getElementById('res-table-body'),
             video: document.getElementById('webcam'),
-            canvas: document.getElementById('output-canvas')
+            canvas: document.getElementById('output-canvas'),
+            btnRestartApp: document.getElementById('btn-restart-app')
         };
 
+        // Al cargar la página, recuperar el nombre si existe guardado
+        window.addEventListener('DOMContentLoaded', () => {
+            let nombreGuardado = localStorage.getItem('senshikan_last_student');
+            if (nombreGuardado) {
+                document.getElementById('input-name').value = nombreGuardado;
+            }
+        });
+
         DOM.btnStart.addEventListener('click', iniciarFlujoEvaluacion);
+        DOM.btnRestartApp.addEventListener('click', () => {
+            // Guardar el nombre actual antes de reiniciar la ventana
+            let actualNombre = DOM.setupPanel.querySelector('#input-name').value.trim();
+            if (actualNombre) {
+                localStorage.setItem('senshikan_last_student', actualNombre);
+            }
+            window.location.reload();
+        });
 
         async function iniciarFlujoEvaluacion() {
             inicializarAudio();
@@ -649,18 +713,19 @@
             estadoApp.guardia = DOM.setupPanel.querySelector('#select-guard').value;
             estadoApp.camaraSeleccionada = DOM.setupPanel.querySelector('#select-camera').value;
 
+            // Guardar en persistencia local para el reinicio
+            localStorage.setItem('senshikan_last_student', estadoApp.nombreAlumno);
+
             if (estadoApp.camaraSeleccionada === "user") {
                 DOM.videoContainer.classList.add('mirror');
             } else {
                 DOM.videoContainer.classList.remove('mirror');
             }
 
-            // Ocultar configuración y mostrar pantalla de carga de sensores
             DOM.setupPanel.style.display = 'none';
             DOM.loadingOverlay.style.display = 'block';
 
             try {
-                // 1. ACTIVAR LA CÁMARA PRIMERO
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: { 
                         facingMode: estadoApp.camaraSeleccionada, 
@@ -675,11 +740,9 @@
                     DOM.canvas.width = DOM.video.videoWidth;
                     DOM.canvas.height = DOM.video.videoHeight;
                     
-                    // 2. ENCIENDE EL CONTENEDOR DE VIDEO DE INMEDIATO (El alumno ya se ve en pantalla)
                     DOM.loadingOverlay.style.display = 'none';
                     DOM.videoContainer.style.display = 'block';
                     
-                    // Inicializar el detector en segundo plano mientras se mira
                     await inicializarPoseDetection();
                 };
 
@@ -696,7 +759,6 @@
                 modelType: 'full'
             });
 
-            // 3. ACTIVAR EL COMANDO DE VOZ CUANDO LA CÁMARA YA SE ESTÁ REPRODUCIENDO
             DOM.prepCountdownContainer.style.display = 'block';
             hablar("Realiza las posiciones que te voy a pedir a continuación", ejecutarConteoInicial);
         }
@@ -748,7 +810,7 @@
                     DOM.txtPrincipal.innerText = estadoApp.tiempoPrincipalRestante.toFixed(2);
                     DOM.txtPrincipal.style.color = (estadoApp.tiempoPrincipalRestante <= 5) ? CONFIG.color_error : CONFIG.color_primary;
 
-                    DOM.txtRetencion.style.color = CONFIG.color_primary; // No corre -> Amarillo
+                    DOM.txtRetencion.style.color = CONFIG.color_primary; 
 
                     if (estadoApp.tiempoPrincipalRestante <= 0) {
                         sonarBuzzer();
@@ -760,7 +822,7 @@
                     estadoApp.tiempoRetencionAcumulado += delta;
                     DOM.txtRetencion.innerText = `${estadoApp.tiempoRetencionAcumulado.toFixed(1)}s / 5s`;
 
-                    DOM.txtRetencion.style.color = CONFIG.color_error; // Corriendo -> Rojo
+                    DOM.txtRetencion.style.color = CONFIG.color_error; 
 
                     if (estadoApp.tiempoRetencionAcumulado >= CONFIG.TIEMPO_RETENCION_REQUERIDO) {
                         estadoApp.score++;
@@ -822,7 +884,6 @@
             if (poses.length > 0) {
                 const kp = poses[0].keypoints;
                 
-                // EXTRAER NODOS PUROS (Se preservan x e y originales para la evaluación matemática)
                 const nodos = {
                     left_hip: kp.find(k => k.name === 'left_hip'),
                     right_hip: kp.find(k => k.name === 'right_hip'),
@@ -842,7 +903,6 @@
                     const canvasWidth = DOM.canvas.width;
                     const canvasHeight = DOM.canvas.height;
 
-                    // CREAR UN MAPA DE COORDENADAS ESCALADAS EXCLUSIVO PARA EL DIBUJO (Evita corromper los datos de entrada)
                     const dibujoNodos = {};
                     Object.keys(nodos).forEach(key => {
                         dibujoNodos[key] = {
@@ -851,7 +911,6 @@
                         };
                     });
 
-                    // DIBUJAR LÍNEAS DEL ESQUELETO CON RENDIMIENTO SEPARADO
                     ctx.lineWidth = 4;
 
                     // Lado Izquierdo (Amarillo)
@@ -864,13 +923,11 @@
                     dibujarLinea(ctx, dibujoNodos.right_knee, dibujoNodos.right_ankle, CONFIG.color_right_node);
                     dibujarLinea(ctx, dibujoNodos.right_ankle, dibujoNodos.right_foot, CONFIG.color_right_node);
 
-                    // DIBUJAR NODOS SOBRE LAS LÍNEAS
                     Object.keys(dibujoNodos).forEach(key => {
                         let colorNodo = key.startsWith('left') ? CONFIG.color_left_node : CONFIG.color_right_node;
                         dibujarPunto(ctx, dibujoNodos[key].x, dibujoNodos[key].y, colorNodo);
                     });
 
-                    // EVALUACIÓN DE POSTURA CON DATA INDEPENDIENTE
                     let pxEstatura = calcularDistancia2D(nodos.left_hip, nodos.left_ankle);
                     let factorEscala = pxEstatura / CONFIG.SUJETO_PRUEBA.TALON_A_CADERA;
 
