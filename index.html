@@ -17,7 +17,7 @@
             --color-surface: #161616;
             --color-text: #ffffff;
             --color-text-muted: #aaaaaa;
-            --color-primary: #e6b800; /* Amarillo Mostaza / Oro */
+            --color-primary: #e6b800; /* Oro Senshi-Kan */
             --color-error: #ff3333;
             --color-right-node: #e6b800;
             --color-left-node: #33ccff;
@@ -180,7 +180,7 @@
             font-size: 0.85rem;
         }
 
-        /* CONTENEDOR VISTA EN VIVO */
+        /* VISTA EN VIVO CON EFECTO ESPEJO DINÁMICO */
         .video-box {
             position: relative;
             width: 100%;
@@ -192,13 +192,19 @@
             min-height: 0;
         }
 
+        /* La clase 'mirror' se controlará por JS dependiendo de la cámara */
+        .video-box.mirror video, 
+        .video-box.mirror canvas {
+            transform: scaleX(-1);
+        }
+
         .video-box video, .video-box canvas {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            object-fit: contain;
+            object-fit: contain; /* Mantiene la proporción sin recortar */
         }
 
         .video-box canvas {
@@ -206,7 +212,6 @@
             pointer-events: none;
         }
 
-        /* BANNER DE CARGA DE IA */
         #loading-overlay {
             display: none;
             text-align: center;
@@ -225,7 +230,6 @@
             100% { opacity: 0.5; }
         }
 
-        /* MODAL DE RESULTADOS */
         .modal-results {
             display: none;
             position: fixed;
@@ -328,8 +332,8 @@
             <div class="form-group">
                 <label for="select-camera">Cámara</label>
                 <select id="select-camera">
-                    <option value="user" selected>Frontal (Selfie)</option>
-                    <option value="environment">Trasera (Principal)</option>
+                    <option value="user" selected>Frontal (Selfie - Modo Espejo)</option>
+                    <option value="environment">Trasera (Instructor - Modo Real)</option>
                 </select>
             </div>
             <button class="btn" id="btn-start">Iniciar Evaluación</button>
@@ -349,7 +353,7 @@
             </div>
         </div>
 
-        <!-- Recuadro del Video -->
+        <!-- Recuadro del Video Ajustado -->
         <div class="video-box" id="video-container" style="display: none;">
             <video id="webcam" autoplay playsinline muted></video>
             <canvas id="output-canvas"></canvas>
@@ -384,11 +388,12 @@
     </div>
 
     <script>
+        // TOLERANCIA AMPLIADA AL 25% SEGÚN LO REQUERIDO
         const CONFIG = {
             TIEMPO_MAESTRO_TOTAL: 120,
             TIEMPO_VENTANA_POSTURA: 20,
             TIEMPO_RETENCION_REQUERIDO: 5,
-            TOLERANCIA_PORCENTAJE: 0.08, 
+            TOLERANCIA_PORCENTAJE: 0.25,  // Subido de 0.08 a 0.25 (25% de margen experimental)
             color_error: '#ff3333',
             color_primary: '#e6b800',
             SUJETO_PRUEBA: {
@@ -461,10 +466,10 @@
                 nombre: "Heisoku Dachi",
                 evaluar: (nodos, factorEscala) => {
                     let distTalones = calcularDistancia2D(nodos.left_ankle, nodos.right_ankle);
-                    let maxDist = (CONFIG.SUJETO_PRUEBA.TALON_A_PUNTA * 0.5) * factorEscala;
+                    let maxDist = (CONFIG.SUJETO_PRUEBA.TALON_A_PUNTA * 0.8) * factorEscala;
                     let rIzq = calcularAngulo(nodos.left_hip, nodos.left_knee, nodos.left_ankle);
                     let rDer = calcularAngulo(nodos.right_hip, nodos.right_knee, nodos.right_ankle);
-                    return (distTalones <= maxDist && rIzq >= 160 && rDer >= 160);
+                    return (distTalones <= maxDist && rIzq >= 150 && rDer >= 150);
                 }
             },
             {
@@ -472,9 +477,9 @@
                 nombre: "Musubi Dachi",
                 evaluar: (nodos, factorEscala) => {
                     let distTalones = calcularDistancia2D(nodos.left_ankle, nodos.right_ankle);
-                    let maxDist = (CONFIG.SUJETO_PRUEBA.TALON_A_PUNTA * 0.6) * factorEscala;
+                    let maxDist = (CONFIG.SUJETO_PRUEBA.TALON_A_PUNTA * 0.9) * factorEscala;
                     let anguloPies = calcularAnguloEntreVectores(nodos.left_ankle, nodos.left_foot, nodos.right_ankle, nodos.right_foot);
-                    return (distTalones <= maxDist && verificarRango(anguloPies, 45, 15));
+                    return (distTalones <= maxDist && verificarRango(anguloPies, 45, 45 * CONFIG.TOLERANCIA_PORCENTAJE));
                 }
             },
             {
@@ -483,8 +488,7 @@
                 evaluar: (nodos, factorEscala) => {
                     let distTalones = calcularDistancia2D(nodos.left_ankle, nodos.right_ankle);
                     let distEsperada = CONFIG.SUJETO_PRUEBA.ANCHO_CADERAS * factorEscala;
-                    let alineacionPies = Math.abs((nodos.left_foot.x - nodos.left_ankle.x) - (nodos.right_foot.x - nodos.right_ankle.x)) < 0.08;
-                    return (verificarRango(distTalones, distEsperada, distEsperada * 0.25) && alineacionPies);
+                    return verificarRango(distTalones, distEsperada, distEsperada * CONFIG.TOLERANCIA_PORCENTAJE);
                 }
             },
             {
@@ -494,7 +498,7 @@
                     let distTalones = calcularDistancia2D(nodos.left_ankle, nodos.right_ankle);
                     let distEsperada = CONFIG.SUJETO_PRUEBA.ANCHO_CADERAS * factorEscala;
                     let anguloPies = calcularAnguloEntreVectores(nodos.left_ankle, nodos.left_foot, nodos.right_ankle, nodos.right_foot);
-                    return (verificarRango(distTalones, distEsperada, distEsperada * 0.25) && verificarRango(anguloPies, 45, 15));
+                    return (verificarRango(distTalones, distEsperada, distEsperada * CONFIG.TOLERANCIA_PORCENTAJE) && verificarRango(anguloPies, 45, 25));
                 }
             },
             {
@@ -503,9 +507,7 @@
                 evaluar: (nodos, factorEscala) => {
                     let rIzq = calcularAngulo(nodos.left_hip, nodos.left_knee, nodos.left_ankle);
                     let rDer = calcularAngulo(nodos.right_hip, nodos.right_knee, nodos.right_ankle);
-                    let distCaderas = calcularDistancia2D(nodos.left_hip, nodos.right_hip);
-                    let distRodillas = calcularDistancia2D(nodos.left_knee, nodos.right_knee);
-                    return (rIzq < 168 && rDer < 168 && distRodillas < distCaderas);
+                    return (rIzq < 172 && rDer < 172);
                 }
             },
             {
@@ -516,7 +518,7 @@
                     let distEsperada = 90 * factorEscala;
                     let rIzq = calcularAngulo(nodos.left_hip, nodos.left_knee, nodos.left_ankle);
                     let rDer = calcularAngulo(nodos.right_hip, nodos.right_knee, nodos.right_ankle);
-                    return (distTalones >= distEsperada * 0.80 && rIzq <= 145 && rDer <= 145);
+                    return (distTalones >= distEsperada * 0.70 && rIzq <= 150 && rDer <= 150);
                 }
             },
             {
@@ -525,10 +527,9 @@
                 evaluar: (nodos, factorEscala) => {
                     let esIzq = (estadoApp.guardia === "izquierdo");
                     let rDelantera = esIzq ? calcularAngulo(nodos.left_hip, nodos.left_knee, nodos.left_ankle) : calcularAngulo(nodos.right_hip, nodos.right_knee, nodos.right_ankle);
-                    let rTrasera = esIzq ? calcularAngulo(nodos.right_hip, nodos.right_knee, nodos.right_ankle) : calcularAngulo(nodos.left_hip, nodos.left_knee, nodos.left_ankle);
                     let distPies = calcularDistancia2D(nodos.left_ankle, nodos.right_ankle);
                     let distEsperada = 60 * factorEscala;
-                    return (verificarRango(distPies, distEsperada, distEsperada * 0.30) && rDelantera < 148 && rTrasera > 160);
+                    return (verificarRango(distPies, distEsperada, distEsperada * CONFIG.TOLERANCIA_PORCENTAJE) && rDelantera < 155);
                 }
             },
             {
@@ -537,10 +538,9 @@
                 evaluar: (nodos, factorEscala) => {
                     let esIzq = (estadoApp.guardia === "izquierdo");
                     let rDelantera = esIzq ? calcularAngulo(nodos.left_hip, nodos.left_knee, nodos.left_ankle) : calcularAngulo(nodos.right_hip, nodos.right_knee, nodos.right_ankle);
-                    let rTrasera = esIzq ? calcularAngulo(nodos.right_hip, nodos.right_knee, nodos.right_ankle) : calcularAngulo(nodos.left_hip, nodos.left_knee, nodos.left_ankle);
                     let distPies = calcularDistancia2D(nodos.left_ankle, nodos.right_ankle);
                     let distEsperada = 85 * factorEscala;
-                    return (distPies >= distEsperada * 0.75 && rDelantera <= 130 && rTrasera >= 160);
+                    return (distPies >= distEsperada * 0.65 && rDelantera <= 138);
                 }
             }
         ];
@@ -597,7 +597,6 @@
 
         DOM.btnStart.addEventListener('click', iniciarFlujoEvaluacion);
 
-        // SECUENCIA DE ARRANQUE CORREGIDA PARA PERMISOS MÓVILES SÍNCRONOS
         async function iniciarFlujoEvaluacion() {
             inicializarAudio();
             
@@ -606,12 +605,17 @@
             estadoApp.guardia = document.getElementById('select-guard').value;
             estadoApp.camaraSeleccionada = document.getElementById('select-camera').value;
 
-            // Ocultar Setup, Mostrar Barra de Carga Intermedia de forma síncrona
+            // CONTROL DE ESPEJO: Solo si es la cámara frontal 'user' se añade la clase espejo
+            if (estadoApp.camaraSeleccionada === "user") {
+                DOM.videoContainer.classList.add('mirror');
+            } else {
+                DOM.videoContainer.classList.remove('mirror');
+            }
+
             DOM.setupPanel.style.display = 'none';
             DOM.loadingOverlay.style.display = 'block';
 
             try {
-                // Paso 1: Forzar encendido inmediato de cámara (Evita bloqueo del navegador)
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: { 
                         facingMode: estadoApp.camaraSeleccionada, 
@@ -622,17 +626,12 @@
                 });
                 
                 DOM.video.srcObject = stream;
-                
                 DOM.video.onloadedmetadata = async () => {
-                    DOM.canvas.width = DOM.video.videoWidth;
-                    DOM.canvas.height = DOM.video.videoHeight;
-                    
-                    // Paso 2: Una vez que el video responde, se inicializa la IA de MediaPipe
                     await inicializarPoseDetection();
                 };
 
             } catch (err) {
-                alert("Error crítico al acceder a la cámara. Por favor asegúrese de dar permisos de cámara al sitio e ingresar mediante HTTPS. Detalle: " + err.message);
+                alert("Error crítico de acceso: " + err.message);
                 window.location.reload();
             }
         }
@@ -644,7 +643,6 @@
                 modelType: 'full'
             });
 
-            // Ocultar barra de carga, mostrar paneles del test
             DOM.loadingOverlay.style.display = 'none';
             DOM.testPanel.style.display = 'block';
             DOM.videoContainer.style.display = 'block';
@@ -680,7 +678,7 @@
 
                     if (estadoApp.tiempoPrincipalRestante <= 0) {
                         sonarBuzzer();
-                        hablar("Prueba no superada");
+                        hablar("Siguiente");
                         estadoApp.historialResultados.push({ nombre: estadoApp.posicionActual.nombre, logrado: false });
                         siguientePosicion();
                     }
@@ -711,7 +709,7 @@
 
             DOM.txtTarget.innerText = estadoApp.posicionActual.nombre;
             DOM.txtRetencion.innerText = "0.0s / 5s";
-            hablar(`Ahora haz ${estadoApp.posicionActual.nombre}`);
+            hablar(`${estadoApp.posicionActual.nombre}`);
         }
 
         function finalizarPruebaGlobal() {
@@ -738,7 +736,7 @@
         async function detectarFrame() {
             if (!estadoApp.pruebaActiva) return;
 
-            const poses = await detector.estimatePoses(DOM.video, { flipHorizontal: (estadoApp.camaraSeleccionada === "user") });
+            const poses = await detector.estimatePoses(DOM.video, { flipHorizontal: false });
             
             ctx.clearRect(0, 0, DOM.canvas.width, DOM.canvas.height);
 
@@ -755,20 +753,34 @@
                     right_foot: kp.find(k => k.name === 'right_foot_index')
                 };
 
-                // Umbral de confianza adaptativo para condiciones lumínicas del dojo
-                let todosVisibles = Object.values(nodos).every(n => n && n.score > 0.40);
+                // Flexibilización de confianza a 0.35 para evitar pérdidas accidentales por iluminación
+                let todosVisibles = Object.values(nodos).every(n => n && n.score > 0.35);
 
                 if (todosVisibles) {
-                    dibujarPunto(ctx, nodos.right_hip, CONFIG.color_right_node);
-                    dibujarPunto(ctx, nodos.right_knee, CONFIG.color_right_node);
-                    dibujarPunto(ctx, nodos.right_ankle, CONFIG.color_right_node);
-                    dibujarPunto(ctx, nodos.right_foot, CONFIG.color_right_node);
+                    // RESOLUCIÓN DEL DESFASE: Sincronizar coordenadas nativas del video al escalado real del canvas en pantalla
+                    const videoWidth = DOM.video.videoWidth;
+                    const videoHeight = DOM.video.videoHeight;
+                    const canvasWidth = DOM.canvas.width;
+                    const canvasHeight = DOM.canvas.height;
 
-                    dibujarPunto(ctx, nodos.left_hip, CONFIG.color_left_node);
-                    dibujarPunto(ctx, nodos.left_knee, CONFIG.color_left_node);
-                    dibujarPunto(ctx, nodos.left_ankle, CONFIG.color_left_node);
-                    dibujarPunto(ctx, nodos.left_foot, CONFIG.color_left_node);
+                    // Mapeo uno a uno de coordenadas para que el punto se dibuje exactamente sobre la articulación
+                    Object.keys(nodos).forEach(key => {
+                        nodos[key].scaledX = (nodos[key].x / videoWidth) * canvasWidth;
+                        nodos[key].scaledY = (nodos[key].y / videoHeight) * canvasHeight;
+                    });
 
+                    // Dibujar puntos usando las coordenadas escaladas y corregidas
+                    dibujarPunto(ctx, nodos.right_hip.scaledX, nodos.right_hip.scaledY, CONFIG.color_right_node);
+                    dibujarPunto(ctx, nodos.right_knee.scaledX, nodos.right_knee.scaledY, CONFIG.color_right_node);
+                    dibujarPunto(ctx, nodos.right_ankle.scaledX, nodos.right_ankle.scaledY, CONFIG.color_right_node);
+                    dibujarPunto(ctx, nodos.right_foot.scaledX, nodos.right_foot.scaledY, CONFIG.color_right_node);
+
+                    dibujarPunto(ctx, nodos.left_hip.scaledX, nodos.left_hip.scaledY, CONFIG.color_left_node);
+                    dibujarPunto(ctx, nodos.left_knee.scaledX, nodos.left_knee.scaledY, CONFIG.color_left_node);
+                    dibujarPunto(ctx, nodos.left_ankle.scaledX, nodos.left_ankle.scaledY, CONFIG.color_left_node);
+                    dibujarPunto(ctx, nodos.left_foot.scaledX, nodos.left_foot.scaledY, CONFIG.color_left_node);
+
+                    // El motor lógico sigue usando distancias matemáticas relativas puras (no le afecta el render)
                     let pxEstatura = calcularDistancia2D(nodos.left_hip, nodos.left_ankle);
                     let factorEscala = pxEstatura / CONFIG.SUJETO_PRUEBA.TALON_A_CADERA;
 
@@ -787,9 +799,9 @@
             requestAnimationFrame(detectarFrame);
         }
 
-        function dibujarPunto(cCtx, nd, color) {
+        function dibujarPunto(cCtx, sX, sY, color) {
             cCtx.beginPath();
-            cCtx.arc(nd.x, nd.y, 8, 0, 2 * Math.PI);
+            cCtx.arc(sX, sY, 8, 0, 2 * Math.PI);
             cCtx.fillStyle = color;
             cCtx.fill();
             cCtx.lineWidth = 2;
