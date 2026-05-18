@@ -19,8 +19,10 @@
             --color-text-muted: #aaaaaa;
             --color-primary: #e6b800; /* Oro Senshi-Kan */
             --color-error: #ff3333;
-            --color-right-node: #e6b800;
-            --color-left-node: #33ccff;
+            
+            /* COLORES CORREGIDOS: Izquierda Amarillo, Derecha Celeste */
+            --color-left-node: #e6b800;
+            --color-right-node: #33ccff;
         }
 
         * {
@@ -180,7 +182,7 @@
             font-size: 0.85rem;
         }
 
-        /* VISTA EN VIVO CON EFECTO ESPEJO DINÁMICO */
+        /* CONTENEDOR MULTIMEDIA REESTRUCTURADO */
         .video-box {
             position: relative;
             width: 100%;
@@ -192,7 +194,7 @@
             min-height: 0;
         }
 
-        /* La clase 'mirror' se controlará por JS dependiendo de la cámara */
+        /* Espejo horizontal controlado dinámicamente */
         .video-box.mirror video, 
         .video-box.mirror canvas {
             transform: scaleX(-1);
@@ -204,7 +206,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            object-fit: contain; /* Mantiene la proporción sin recortar */
+            object-fit: contain;
         }
 
         .video-box canvas {
@@ -339,10 +341,10 @@
             <button class="btn" id="btn-start">Iniciar Evaluación</button>
         </div>
 
-        <!-- Feedback de carga Intermedio -->
+        <!-- Feedback de carga -->
         <div class="card" id="loading-overlay">Inicializando Cámara y Sensores IA...</div>
 
-        <!-- Panel de Ejecución del Test -->
+        <!-- Panel de Ejecución -->
         <div class="card" id="test-panel" style="display: none;">
             <div class="dashboard">
                 <div class="timer-master">Tiempo Maestro: <span id="txt-master" style="color:#fff; font-weight:bold;">02:00</span></div>
@@ -353,7 +355,7 @@
             </div>
         </div>
 
-        <!-- Recuadro del Video Ajustado -->
+        <!-- Recuadro del Video -->
         <div class="video-box" id="video-container" style="display: none;">
             <video id="webcam" autoplay playsinline muted></video>
             <canvas id="output-canvas"></canvas>
@@ -388,14 +390,16 @@
     </div>
 
     <script>
-        // TOLERANCIA AMPLIADA AL 25% SEGÚN LO REQUERIDO
+        // CONFIGURACIÓN CON TOLERANCIA DEL 25% EXPERIMENTAL
         const CONFIG = {
             TIEMPO_MAESTRO_TOTAL: 120,
             TIEMPO_VENTANA_POSTURA: 20,
             TIEMPO_RETENCION_REQUERIDO: 5,
-            TOLERANCIA_PORCENTAJE: 0.25,  // Subido de 0.08 a 0.25 (25% de margen experimental)
+            TOLERANCIA_PORCENTAJE: 0.25,  
             color_error: '#ff3333',
             color_primary: '#e6b800',
+            color_left_node: '#e6b800',   // Amarillo para articulaciones izquierdas
+            color_right_node: '#33ccff',  // Celeste para articulaciones derechas
             SUJETO_PRUEBA: {
                 ESTATURA: 174,
                 TALON_A_CADERA: 100,
@@ -605,7 +609,6 @@
             estadoApp.guardia = document.getElementById('select-guard').value;
             estadoApp.camaraSeleccionada = document.getElementById('select-camera').value;
 
-            // CONTROL DE ESPEJO: Solo si es la cámara frontal 'user' se añade la clase espejo
             if (estadoApp.camaraSeleccionada === "user") {
                 DOM.videoContainer.classList.add('mirror');
             } else {
@@ -627,6 +630,10 @@
                 
                 DOM.video.srcObject = stream;
                 DOM.video.onloadedmetadata = async () => {
+                    // CALIBRACIÓN DINÁMICA CRÍTICA: Forzar al canvas a adoptar la resolución nativa de captura
+                    DOM.canvas.width = DOM.video.videoWidth;
+                    DOM.canvas.height = DOM.video.videoHeight;
+                    
                     await inicializarPoseDetection();
                 };
 
@@ -753,34 +760,33 @@
                     right_foot: kp.find(k => k.name === 'right_foot_index')
                 };
 
-                // Flexibilización de confianza a 0.35 para evitar pérdidas accidentales por iluminación
                 let todosVisibles = Object.values(nodos).every(n => n && n.score > 0.35);
 
                 if (todosVisibles) {
-                    // RESOLUCIÓN DEL DESFASE: Sincronizar coordenadas nativas del video al escalado real del canvas en pantalla
                     const videoWidth = DOM.video.videoWidth;
                     const videoHeight = DOM.video.videoHeight;
                     const canvasWidth = DOM.canvas.width;
                     const canvasHeight = DOM.canvas.height;
 
-                    // Mapeo uno a uno de coordenadas para que el punto se dibuje exactamente sobre la articulación
+                    // Mapeo absoluto uno a uno
                     Object.keys(nodos).forEach(key => {
                         nodos[key].scaledX = (nodos[key].x / videoWidth) * canvasWidth;
                         nodos[key].scaledY = (nodos[key].y / videoHeight) * canvasHeight;
                     });
 
-                    // Dibujar puntos usando las coordenadas escaladas y corregidas
-                    dibujarPunto(ctx, nodos.right_hip.scaledX, nodos.right_hip.scaledY, CONFIG.color_right_node);
-                    dibujarPunto(ctx, nodos.right_knee.scaledX, nodos.right_knee.scaledY, CONFIG.color_right_node);
-                    dibujarPunto(ctx, nodos.right_ankle.scaledX, nodos.right_ankle.scaledY, CONFIG.color_right_node);
-                    dibujarPunto(ctx, nodos.right_foot.scaledX, nodos.right_foot.scaledY, CONFIG.color_right_node);
-
+                    // DIBUJO CON COLORES ASIGNADOS CORRECTAMENTE
+                    // Nodos Izquierdos -> Amarillo
                     dibujarPunto(ctx, nodos.left_hip.scaledX, nodos.left_hip.scaledY, CONFIG.color_left_node);
                     dibujarPunto(ctx, nodos.left_knee.scaledX, nodos.left_knee.scaledY, CONFIG.color_left_node);
                     dibujarPunto(ctx, nodos.left_ankle.scaledX, nodos.left_ankle.scaledY, CONFIG.color_left_node);
                     dibujarPunto(ctx, nodos.left_foot.scaledX, nodos.left_foot.scaledY, CONFIG.color_left_node);
 
-                    // El motor lógico sigue usando distancias matemáticas relativas puras (no le afecta el render)
+                    // Nodos Derechas -> Celeste
+                    dibujarPunto(ctx, nodos.right_hip.scaledX, nodos.right_hip.scaledY, CONFIG.color_right_node);
+                    dibujarPunto(ctx, nodos.right_knee.scaledX, nodos.right_knee.scaledY, CONFIG.color_right_node);
+                    dibujarPunto(ctx, nodos.right_ankle.scaledX, nodos.right_ankle.scaledY, CONFIG.color_right_node);
+                    dibujarPunto(ctx, nodos.right_foot.scaledX, nodos.right_foot.scaledY, CONFIG.color_right_node);
+
                     let pxEstatura = calcularDistancia2D(nodos.left_hip, nodos.left_ankle);
                     let factorEscala = pxEstatura / CONFIG.SUJETO_PRUEBA.TALON_A_CADERA;
 
