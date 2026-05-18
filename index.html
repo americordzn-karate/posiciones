@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Senshi-Kan Kinematic Analyzer & Biometrics</title>
+    <title>Senshi-Kan Karate Pose Evaluator & Biometrics</title>
     
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/pose.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.1.3/dist/pose-detection.min.js"></script>
-
+    
     <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js" crossorigin="anonymous"></script>
 
     <style>
@@ -52,7 +52,7 @@
         .video-box.mirror video, .video-box.mirror canvas { transform: scaleX(-1); }
         .video-box video, .video-box canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; }
         .video-box canvas { z-index: 2; pointer-events: none; }
-        #loading-overlay { display: block; text-align: center; padding: 15px; color: var(--color-primary); font-weight: bold; font-size: 1rem; text-transform: uppercase; letter-spacing: 1px; }
+        #loading-overlay { display: block; text-align: center; padding: 15px; color: var(--color-primary); font-weight: bold; font-size: 1.1rem; text-transform: uppercase; letter-spacing: 1px; }
         .countdown-number { font-size: 4rem; display: block; margin-top: 10px; color: #ffffff; font-family: monospace; }
         #prep-countdown-container { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 5; background: rgba(0, 0, 0, 0.8); padding: 20px 40px; border-radius: 12px; text-align: center; border: 2px solid var(--color-primary); pointer-events: none; }
         #prep-countdown-container p { font-size: 1rem; color: var(--color-primary); text-transform: uppercase; letter-spacing: 1px; }
@@ -79,7 +79,7 @@
 
     <div class="container">
         <div class="card" id="loading-overlay">
-            <span id="loading-text">Iniciando sistemas neuronales de Senshi-Kan...</span>
+            <span id="loading-text">Iniciando sistemas neuronales Senshi-Kan...</span>
         </div>
 
         <div class="card" id="setup-panel" style="display: none;">
@@ -94,7 +94,7 @@
 
             <div class="form-group">
                 <label for="input-name">Nombre del Alumno</label>
-                <input type="text" id="input-name" placeholder="Acreditando rostro en cámara..." readonly required>
+                <input type="text" id="input-name" placeholder="Escaneando rostro en cámara..." readonly required>
             </div>
             
             <div class="row">
@@ -111,13 +111,13 @@
                 </div>
             </div>
             <div class="form-group">
-                <label for="select-camera">Cámara de Evaluación</label>
+                <label for="select-camera">Cámara de Trabajo</label>
                 <select id="select-camera">
                     <option value="user" selected>Frontal (Selfie - Modo Espejo)</option>
                     <option value="environment">Trasera (Instructor - Modo Real)</option>
                 </select>
             </div>
-            <button class="btn" id="btn-start" disabled>Acreditación Biométrica Requerida...</button>
+            <button class="btn" id="btn-start" disabled>Acreditación Biométrica Necesaria...</button>
         </div>
 
         <div class="card" id="test-panel" style="display: none;">
@@ -165,8 +165,8 @@
     </div>
 
     <script>
-        // CONFIGURACIÓN CENTRALIZADA E INTERFAZ CON GOOGLE SHEETS
-        const URL_API_SHEETS = "https://script.google.com/macros/s/AKfycbybcoO_h2T_0P6X-mX336X8i9616Xm7ImsiQun9R6V-U0OOf6rL6gY8T1bH2R8y6qg/exec"; 
+        // CONFIGURACIÓN DE CONEXIONES Y SERVIDORES
+        const URL_API_SHEETS = "https://script.google.com/macros/s/AKfycbybcoO_h2T_0P6X-mX336X8i9616Xm7ImsiQun9R6V-U0OOf6rL6gY8T1bH2R8y6qg/exec";
         const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
 
         let baseDatosAlumnos = [];
@@ -246,52 +246,48 @@
             loadingText: document.getElementById('loading-text')
         };
 
-        // INICIALIZACIÓN ASÍNCRONA ROBUSTA DE REDES BIOMÉTRICAS
+        // INTEGRACIÓN DEL ARRANQUE ASÍNCRONO DE ESCANEO BIOMÉTRICO
         window.addEventListener('DOMContentLoaded', async () => {
-            // Aplicar persistencia local preventiva si existe
+            // Cargar datos en caché local si existieran previamente
             let nombreGuardado = localStorage.getItem('senshikan_last_student');
             if (nombreGuardado) document.getElementById('input-name').value = nombreGuardado;
             let estaturaGuardada = localStorage.getItem('senshikan_last_height');
             if (estaturaGuardada) document.getElementById('input-height').value = estaturaGuardada;
 
             try {
-                // 1. Forzar inicialización segura del backend gráfico unificado de TensorFlow
-                DOM.loadingText.innerText = "Cargando motor gráfico (WebGL)...";
+                // 1. Iniciar backend gráfico
+                DOM.loadingOverlay.style.display = 'block';
+                DOM.loadingText.innerText = "Inicializando aceleración gráfica (WebGL)...";
                 await tf.ready();
-                
-                // Asignar el núcleo global de TF a FaceAPI explícitamente
-                faceapi.tf = tf;
+                faceapi.tf = tf; // Enlazar motores
 
-                // 2. Carga paralela de redes neuronales optimizadas para web/móvil
-                DOM.loadingText.innerText = "Descargando modelos biométricos faciales...";
+                // 2. Cargar redes de rostros
+                DOM.loadingText.innerText = "Cargando algoritmos de reconocimiento facial...";
                 await Promise.all([
                     faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
                     faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
                     faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
                 ]);
-                console.log("Modelos Face-API cargados con éxito.");
 
-                // 3. Conexión controlada con la Base de Datos Remota (Timeout de 5 segundos)
-                DOM.loadingText.innerText = "Conectando al Servidor Central de Alumnos...";
+                // 3. Descargar base remota con aborto controlado por tiempo (5 segundos máximo)
+                DOM.loadingText.innerText = "Conectando con la base de datos de atletas...";
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 5000);
 
                 const respuesta = await fetch(URL_API_SHEETS, { signal: controller.signal });
                 clearTimeout(timeoutId);
 
-                if (!respuesta.ok) throw new Error("Servidor no disponible");
+                if (!respuesta.ok) throw new Error("Servidor Central Caído");
                 baseDatosAlumnos = await respuesta.json();
 
-                // 4. Mapear descriptores faciales de atletas activos
+                // 4. Mapear descriptores de rostros válidos
                 const descriptoresValidos = [];
                 baseDatosAlumnos.forEach(alumno => {
                     if (alumno.Huella_Facial && alumno.Atleta_Activo === true) {
                         try {
-                            const vectorFloat = new Float32Array(JSON.parse(alumno.Huella_Facial));
-                            descriptoresValidos.push(new faceapi.LabeledFaceDescriptors(alumno.Nombre, [vectorFloat]));
-                        } catch(e) {
-                            console.warn("Firma inválida ignorada:", alumno.Nombre);
-                        }
+                            const vectorArray = new Float32Array(JSON.parse(alumno.Huella_Facial));
+                            descriptoresValidos.push(new faceapi.LabeledFaceDescriptors(alumno.Nombre, [vectorArray]));
+                        } catch(e) { console.warn("Firma inválida omitida:", alumno.Nombre); }
                     }
                 });
 
@@ -299,39 +295,38 @@
                     faceMatcher = new faceapi.FaceMatcher(descriptoresValidos, 0.55);
                     DOM.loadingOverlay.style.display = 'none';
                     DOM.setupPanel.style.display = 'block';
-                    activarEscaneoFacialBiometrico();
+                    arrancarProcesoEscaneoFacial();
                 } else {
-                    throw new Error("Base de datos sin firmas faciales configuradas.");
+                    throw new Error("Base de datos sin firmas guardadas.");
                 }
 
             } catch (err) {
-                console.error("Iniciando Modo Contingencia Automático:", err);
+                console.error("Modo de contingencia automático activado:", err);
                 DOM.loadingOverlay.style.display = 'none';
                 DOM.setupPanel.style.display = 'block';
-                liberarCamposModoManual("Servidor desconectado. Ingrese datos manual.");
+                liberarCamposModoManual();
             }
         });
 
-        // FLUJO DE ESCANEO ACTIVO EN PANTALLA
-        async function activarEscaneoFacialBiometrico() {
+        // FLUJO CONTINUO DE RECONOCIMIENTO FACIAL EN EL PANEL DE ENTRADA
+        async function arrancarProcesoEscaneoFacial() {
             try {
                 streamReconocimiento = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: "user", width: 640, height: 480 }, 
-                    audio: false 
+                    video: { facingMode: "user", width: 640, height: 480 }, audio: false 
                 });
                 DOM.video.srcObject = streamReconocimiento;
                 DOM.videoContainer.style.display = 'block';
                 DOM.videoContainer.classList.add('mirror');
 
-                async function procesarFrameReconocimiento() {
+                async function frameReconocimiento() {
                     if (!controlReconocimientoActivo) return;
 
                     if (DOM.video.paused || DOM.video.ended || DOM.video.readyState < 2) {
-                        setTimeout(procesarFrameReconocimiento, 200);
+                        setTimeout(frameReconocimiento, 200);
                         return;
                     }
 
-                    // Detección ágil usando TinyFaceDetector para evitar lag en dispositivos móviles
+                    // Escaneo ágil con TinyFaceDetector para evitar lags en móviles
                     const deteccion = await faceapi.detectSingleFace(DOM.video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 }))
                         .withFaceLandmarks()
                         .withFaceDescriptor();
@@ -355,33 +350,31 @@
                         }
                     }
 
-                    if (controlReconocimientoActivo) {
-                        setTimeout(procesarFrameReconocimiento, 100);
-                    }
+                    if (controlReconocimientoActivo) { setTimeout(frameReconocimiento, 100); }
                 }
-                setTimeout(procesarFrameReconocimiento, 400);
+                setTimeout(frameReconocimiento, 400);
 
             } catch (e) {
-                console.warn("Hardware de cámara no disponible para biometría inicial:", e);
-                liberarCamposModoManual("Cámara ocupada. Ingrese datos manual.");
+                console.warn("Cámara no disponible para el escaneo facial inicial:", e);
+                liberarCamposModoManual();
             }
         }
 
-        function liberarCamposModoManual(mensajeConsola) {
+        function liberarCamposModoManual() {
             controlReconocimientoActivo = false;
             if (streamReconocimiento) { streamReconocimiento.getTracks().forEach(t => t.stop()); }
             DOM.videoContainer.style.display = 'none';
 
-            // Convertir campos a modo escritura para que las evaluaciones en el Dojo continúen sin internet
+            // Remover atributos de solo lectura para habilitar la captura manual de datos en el Dojo
             const inputNombre = document.getElementById('input-name');
             inputNombre.removeAttribute('readonly');
-            inputNombre.value = "";
-            inputNombre.placeholder = "Escribe el nombre del alumno...";
+            inputNombre.placeholder = "Nombre del Alumno...";
+            if(inputNombre.value === "Escaneando rostro en cámara...") inputNombre.value = "";
 
             const inputEstatura = document.getElementById('input-height');
             inputEstatura.removeAttribute('readonly');
-            inputEstatura.value = "";
-            inputEstatura.placeholder = "Estatura (cm)";
+            inputEstatura.placeholder = "cm (Ej. 174)";
+            if(inputEstatura.value === "---") inputEstatura.value = "";
 
             DOM.btnStart.disabled = false;
             DOM.btnStart.innerText = "Iniciar Evaluación (Manual)";
@@ -391,7 +384,7 @@
         
         DOM.btnRestartApp.addEventListener('click', () => {
             let actualNombre = DOM.setupPanel.querySelector('#input-name').value.trim();
-            if (actualNombre && actualNombre !== "Acreditando rostro en cámara...") {
+            if (actualNombre && actualNombre !== "Escaneando rostro en cámara...") {
                 localStorage.setItem('senshikan_last_student', actualNombre);
             }
             let actualEstatura = DOM.setupPanel.querySelector('#input-height').value.trim();
@@ -401,7 +394,7 @@
             window.location.reload();
         });
 
-        // MOTOR CINEMÁTICO PRINCIPAL (BlazePose)
+        // PROCESAMIENTO CINEMÁTICO (BlazePose)
         async function iniciarFlujoEvaluacion() {
             inicializarAudio();
             controlReconocimientoActivo = false;
@@ -413,7 +406,7 @@
             estadoApp.camaraSeleccionada = DOM.setupPanel.querySelector('#select-camera').value;
 
             localStorage.setItem('senshikan_last_student', estadoApp.nombreAlumno);
-            localStorage.setItem('senshikan_last_height', estadoApp.estaturaAlumno);
+            localStorage.setItem('senshikan_last_height', DOM.setupPanel.querySelector('#input-height').value.trim());
 
             if (estadoApp.camaraSeleccionada === "user") DOM.videoContainer.classList.add('mirror');
             else DOM.videoContainer.classList.remove('mirror');
@@ -567,7 +560,7 @@
         }
 
         function dibujarLinea(cCtx, p1, p2, color) { cCtx.beginPath(); cCtx.moveTo(p1.x, p1.y); cCtx.lineTo(p2.x, p2.y); cCtx.strokeStyle = color; cCtx.stroke(); cCtx.closePath(); }
-        function dibujarPunto(cCtx, sX, sY, color) { cCtx.beginPath(); cCtx.arc(sX, sY, 7, 0, 2 * Math.PI); cCtx.fillStyle = color; cCtx.fill(); iwi = 1.5; cCtx.strokeStyle = '#ffffff'; cCtx.stroke(); cCtx.closePath(); }
+        function dibujarPunto(cCtx, sX, sY, color) { cCtx.beginPath(); cCtx.arc(sX, sY, 7, 0, 2 * Math.PI); cCtx.fillStyle = color; cCtx.fill(); cCtx.lineWidth = 1.5; cCtx.strokeStyle = '#ffffff'; cCtx.stroke(); cCtx.closePath(); }
     </script>
 </body>
 </html>
