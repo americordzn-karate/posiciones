@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Senshi-Kan Karate Pose Evaluator</title>
     <!-- MediaPipe y TensorFlow.js -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
@@ -12,9 +12,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
 
     <style>
-        /* ==========================================
-           PALETA DE DISEÑO: NEGRO, BLANCO Y ORO/MOSTAZA
-           ========================================== */
         :root {
             --color-bg: #0b0b0b;
             --color-surface: #161616;
@@ -22,8 +19,8 @@
             --color-text-muted: #aaaaaa;
             --color-primary: #e6b800; /* Amarillo Mostaza / Oro */
             --color-error: #ff3333;
-            --color-right-node: #e6b800; /* Lado Derecho: Amarillo */
-            --color-left-node: #33ccff;  /* Lado Izquierdo: Celeste */
+            --color-right-node: #e6b800;
+            --color-left-node: #33ccff;
         }
 
         * {
@@ -38,76 +35,74 @@
             color: var(--color-text);
             display: flex;
             flex-direction: column;
-            align-items: center;
-            min-height: 100vh;
-            overflow-x: hidden;
+            height: 100vh;
+            height: -webkit-fill-available;
+            overflow: hidden; /* Evita totalmente el scroll down */
         }
 
+        /* ENCABEZADO ULTRA COMPACTO */
         header {
             background-color: var(--color-surface);
             width: 100%;
             text-align: center;
-            padding: 15px;
-            border-bottom: 3px solid var(--color-primary);
+            padding: 8px;
+            border-bottom: 2px solid var(--color-primary);
+            flex-shrink: 0;
         }
 
         header h1 {
-            font-size: 1.4rem;
-            letter-spacing: 2px;
+            font-size: 1.1rem;
+            letter-spacing: 1px;
             text-transform: uppercase;
             color: var(--color-primary);
         }
 
         header p {
-            font-size: 0.8rem;
+            font-size: 0.7rem;
             color: var(--color-text-muted);
-            margin-top: 4px;
         }
 
         .container {
             width: 100%;
-            max-width: 480px; /* Formato móvil vertical */
-            padding: 15px;
+            max-width: 480px;
+            margin: 0 auto;
+            padding: 10px;
             display: flex;
             flex-direction: column;
-            gap: 15px;
+            flex: 1;
+            gap: 10px;
+            min-height: 0; /* Permite colapsar flex correctamente */
         }
 
         .card {
             background-color: var(--color-surface);
             border-radius: 8px;
-            padding: 15px;
+            padding: 12px;
             border: 1px solid #222;
         }
 
         /* CONFIGURACIÓN E INPUTS */
         .form-group {
-            margin-bottom: 12px;
+            margin-bottom: 10px;
         }
 
         .form-group label {
             display: block;
-            font-size: 0.85rem;
+            font-size: 0.75rem;
             color: var(--color-primary);
-            margin-bottom: 5px;
+            margin-bottom: 3px;
             font-weight: bold;
             text-transform: uppercase;
         }
 
         .form-group input, .form-group select {
             width: 100%;
-            padding: 10px;
+            padding: 8px;
             background-color: #222;
-            border: 1px solid #44
             border: 1px solid #444;
             color: #fff;
             border-radius: 4px;
-            font-size: 1rem;
-        }
-
-        .form-group input:focus, .form-group select:focus {
-            border-color: var(--color-primary);
-            outline: none;
+            font-size: 0.95rem;
         }
 
         .row {
@@ -119,93 +114,87 @@
             flex: 1;
         }
 
-        /* BOTONES */
         .btn {
             background-color: var(--color-primary);
             color: #000;
             border: none;
-            padding: 12px;
+            padding: 10px;
             width: 100%;
             font-weight: bold;
-            font-size: 1rem;
+            font-size: 0.95rem;
             border-radius: 4px;
             cursor: pointer;
             text-transform: uppercase;
             letter-spacing: 1px;
-            transition: background 0.2s;
         }
 
-        .btn:hover {
-            background-color: #cc00;
-            background-color: #cca300;
-        }
-
-        /* CONTADORES Y FEEDBACK */
+        /* DASHBOARD COMPACTO */
         .dashboard {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 10px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 5px;
             text-align: center;
+            align-items: center;
         }
 
         .timer-master {
-            font-size: 1.1rem;
+            grid-column: 1 / -1;
+            font-size: 0.85rem;
             color: var(--color-text-muted);
         }
 
-        .timer-master span {
-            color: #fff;
+        .target-pose {
+            grid-column: 1 / -1;
+            font-size: 1.1rem;
             font-weight: bold;
+            color: var(--color-primary);
+            text-transform: uppercase;
+            border: 1px dashed var(--color-primary);
+            padding: 4px;
+            border-radius: 4px;
+            background: rgba(230, 184, 0, 0.05);
         }
 
         .timer-principal {
-            font-size: 3.5rem;
+            font-size: 2.2rem;
             font-family: monospace;
             font-weight: bold;
-            line-height: 1;
-            margin: 5px 0;
-            transition: color 0.2s;
+            color: var(--color-primary);
         }
 
         .timer-retencion {
             background-color: #222;
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-size: 1rem;
+            padding: 4px;
+            border-radius: 4px;
+            font-size: 0.8rem;
             border: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
         }
 
         .timer-retencion span {
             color: var(--color-primary);
             font-weight: bold;
-        }
-
-        .target-pose {
-            font-size: 1.3rem;
-            font-weight: bold;
-            color: var(--color-primary);
-            margin: 5px 0;
-            text-transform: uppercase;
-            border: 1px dashed var(--color-primary);
-            padding: 8px;
-            width: 100%;
-            border-radius: 4px;
+            font-size: 0.95rem;
         }
 
         .score-live {
-            font-size: 1.1rem;
+            grid-column: 1 / -1;
+            font-size: 0.85rem;
+            margin-top: 2px;
         }
 
-        /* CONTENEDOR DE CÁMARA Y LIENZO */
+        /* CONTENEDOR DE CÁMARA ADAPTATIVO SIN CORTE */
         .video-box {
             position: relative;
             width: 100%;
-            padding-top: 133.33%; /* Relación de aspecto 3:4 vertical */
+            flex: 1; /* Ocupa todo el espacio restante sin empujar la pantalla */
             background-color: #000;
             border-radius: 8px;
             overflow: hidden;
             border: 2px solid var(--color-surface);
+            min-height: 0;
         }
 
         .video-box video, .video-box canvas {
@@ -214,7 +203,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            object-fit: cover;
+            object-fit: contain; /* Garantiza que se vea el cuerpo entero sin recortes */
         }
 
         .video-box canvas {
@@ -234,7 +223,7 @@
             z-index: 10;
             justify-content: center;
             align-items: center;
-            padding: 20px;
+            padding: 15px;
         }
 
         .results-card {
@@ -242,55 +231,45 @@
             border: 2px solid var(--color-primary);
             border-radius: 8px;
             width: 100%;
-            max-width: 440px;
-            padding: 20px;
-            box-shadow: 0 0 20px rgba(230, 184, 0, 0.2);
+            max-width: 400px;
+            padding: 15px;
         }
 
         .results-header {
             text-align: center;
             border-bottom: 1px solid #333;
-            padding-bottom: 15px;
-            margin-bottom: 15px;
+            padding-bottom: 10px;
+            margin-bottom: 10px;
         }
 
         .results-header h2 {
             color: var(--color-primary);
             text-transform: uppercase;
-            font-size: 1.5rem;
-        }
-
-        .results-header .student-name {
-            font-size: 1.2rem;
-            font-weight: bold;
-            margin-top: 5px;
+            font-size: 1.3rem;
         }
 
         .score-final {
             text-align: center;
-            font-size: 2.5rem;
+            font-size: 2.2rem;
             font-weight: bold;
             color: var(--color-primary);
-            margin: 10px 0;
+            margin: 5px 0;
         }
 
         .table-results {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 15px;
-            font-size: 0.9rem;
+            font-size: 0.8rem;
         }
 
         .table-results th, .table-results td {
             border: 1px solid #333;
-            padding: 10px;
-            text-align: left;
+            padding: 8px;
         }
 
         .table-results th {
             background-color: #222;
             color: var(--color-primary);
-            text-transform: uppercase;
         }
 
         .status-ok { color: #33cc66; font-weight: bold; }
@@ -299,10 +278,9 @@
         .slogan {
             text-align: center;
             font-style: italic;
-            margin-top: 20px;
+            margin-top: 15px;
             color: var(--color-text-muted);
-            font-size: 0.85rem;
-            letter-spacing: 1px;
+            font-size: 0.75rem;
         }
     </style>
 </head>
@@ -310,7 +288,7 @@
 
     <header>
         <h1>Senshi-Kan Kinematic Analyzer</h1>
-        <p>Evaluador de Posturas Automatizado · "Vence Tus Límites"</p>
+        <p>Evaluador Automatizado de Posturas · "Vence Tus Límites"</p>
     </header>
 
     <div class="container">
@@ -323,7 +301,7 @@
             <div class="row">
                 <div class="form-group">
                     <label for="input-height">Estatura (cm)</label>
-                    <input type="number" id="input-height" value="170" required>
+                    <input type="number" id="input-height" value="174" required>
                 </div>
                 <div class="form-group">
                     <label for="select-guard">Guardia Inicial</label>
@@ -346,15 +324,15 @@
         <!-- Panel de Ejecución del Test -->
         <div class="card" id="test-panel" style="display: none;">
             <div class="dashboard">
-                <div class="timer-master">Tiempo Maestro: <span id="txt-master">02:00</span></div>
+                <div class="timer-master">Tiempo Maestro: <span id="txt-master" style="color:#fff; font-weight:bold;">02:00</span></div>
                 <div class="target-pose" id="txt-target">PREPARANDO...</div>
                 <div class="timer-principal" id="txt-principal">20.00</div>
-                <div class="timer-retencion">Estabilidad: <span id="txt-retencion">0.0s</span> / 5s</div>
+                <div class="timer-retencion">Estabilidad <span id="txt-retencion">0.0s / 5s</span></div>
                 <div class="score-live">Posiciones logradas: <strong id="txt-score" style="color: var(--color-primary);">0</strong></div>
             </div>
         </div>
 
-        <!-- Recuadro del Video -->
+        <!-- Recuadro del Video Ajustado -->
         <div class="video-box" id="video-container" style="display: none;">
             <video id="webcam" autoplay playsinline muted></video>
             <canvas id="output-canvas"></canvas>
@@ -366,42 +344,36 @@
         <div class="results-card">
             <div class="results-header">
                 <h2>Evaluación Finalizada</h2>
-                <div class="student-name" id="res-student">---</div>
-                <p id="res-date"></p>
+                <div class="student-name" id="res-student" style="font-size: 1.1rem; font-weight: bold; margin-top: 3px;">---</div>
+                <p id="res-date" style="font-size: 0.75rem; color: var(--color-text-muted);"></p>
             </div>
-            <p style="text-align: center; text-transform: uppercase; font-size: 0.8rem; color: var(--color-text-muted);">Score Obtenido</p>
             <div class="score-final" id="res-score">0</div>
             
-            <table class="table-results">
-                <thead>
-                    <tr>
-                        <th>Posición Evaluada</th>
-                        <th>Resultado</th>
-                    </tr>
-                </thead>
-                <tbody id="res-table-body">
-                    <!-- Filas dinámicas -->
-                </tbody>
-            </table>
+            <div style="max-height: 180px; overflow-y: auto; margin-top: 10px;">
+                <table class="table-results">
+                    <thead>
+                        <tr>
+                            <th>Posición</th>
+                            <th>Resultado</th>
+                        </tr>
+                    </thead>
+                    <tbody id="res-table-body"></tbody>
+                </table>
+            </div>
 
             <div class="slogan">SENSHI-KAN KARATE ACADEMY<br>"VENCE TUS LÍMITES"</div>
-            <button class="btn" style="margin-top: 20px;" onclick="window.location.reload();">Reiniciar</button>
+            <button class="btn" style="margin-top: 15px;" onclick="window.location.reload();">Reiniciar</button>
         </div>
     </div>
 
-    <!-- CONTEXTO TÉCNICO, CONFIGURACIÓN CENTRALIZADA Y LÓGICA BIOMECÁNICA -->
     <script>
-        // =========================================================================
-        // 1. SECCIÓN DE CONFIGURACIÓN CENTRALIZADA (Config Object)
-        // =========================================================================
         const CONFIG = {
-            TIEMPO_MAESTRO_TOTAL: 120,    // Duración total de la prueba en segundos (2 minutos)
-            TIEMPO_VENTANA_POSTURA: 20,   // Ventana de tiempo para armar cada posición (segundos)
-            TIEMPO_RETENCION_REQUERIDO: 5, // Segundos continuos que debe mantener la postura
-            TOLERANCIA_PORCENTAJE: 0.05,  // +-5% de tolerancia cinemática
-            UMBRAL_DETECCION_GOLPE: 45,   // Umbral de activación técnica aprendido previamente
-
-            // Datos antropométricos exactos del Sujeto de Prueba proporcionados por el Sensei
+            TIEMPO_MAESTRO_TOTAL: 120,
+            TIEMPO_VENTANA_POSTURA: 20,
+            TIEMPO_RETENCION_REQUERIDO: 5,
+            TOLERANCIA_PORCENTAJE: 0.08,  // Incrementado levemente a 8% para compensar la distorsión óptica de lentes móviles
+            color_error: '#ff3333',
+            color_primary: '#e6b800',
             SUJETO_PRUEBA: {
                 ESTATURA: 174,
                 TALON_A_CADERA: 100,
@@ -411,82 +383,64 @@
             }
         };
 
-        // =========================================================================
-        // 2. VARIABLES DE ESTADO DEL SOFTWARE
-        // =========================================================================
         let estadoApp = {
             nombreAlumno: "",
-            estaturaAlumno: 170,
-            guardia: "izquierdo", // izquierdo o derecho al frente
+            estaturaAlumno: 174,
+            guardia: "izquierdo",
             camaraSeleccionada: "user",
-            
-            // Timers y contadores
             tiempoMaestroRestante: CONFIG.TIEMPO_MAESTRO_TOTAL,
             tiempoPrincipalRestante: CONFIG.TIEMPO_VENTANA_POSTURA,
             tiempoRetencionAcumulado: 0,
             score: 0,
-            
-            // Gestión de la secuencia
             posicionActual: null,
-            historialResultados: [], // Guarda { nombre, logrado: true/false }
+            historialResultados: [],
             catalogoLocal: [],
-            
-            // Control de banderas (Flags)
             pruebaActiva: false,
             posturaConectada: false,
-            
-            // Referencias de intervalos
-            intervaloMaestro: null,
-            intervaloLógica: null
+            intervaloMaestro: null
         };
 
-        // Contexto de Audio Web API para Beeps y Buzzers nativos
         const AudioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
         function sonarBeep() {
             let osc = AudioCtx.createOscillator();
             let gain = AudioCtx.createGain();
             osc.connect(gain); gain.connect(AudioCtx.destination);
-            osc.frequency.value = 880; // Tono agudo limpio
+            osc.frequency.value = 880;
             gain.gain.setValueAtTime(0.1, AudioCtx.currentTime);
-            osc.start(); osc.stop(AudioCtx.currentTime + 0.15);
+            osc.start(); osc.stop(AudioCtx.currentTime + 0.12);
         }
 
         function sonarBuzzer() {
             let osc = AudioCtx.createOscillator();
             let gain = AudioCtx.createGain();
             osc.connect(gain); gain.connect(AudioCtx.destination);
-            osc.type = 'sawtooth'; // Sonido raspado de error
-            osc.frequency.value = 150; 
+            osc.type = 'sawtooth';
+            osc.frequency.value = 160;
             gain.gain.setValueAtTime(0.1, AudioCtx.currentTime);
-            osc.start(); osc.stop(AudioCtx.currentTime + 0.3);
+            osc.start(); osc.stop(AudioCtx.currentTime + 0.25);
         }
 
         function hablar(mensaje) {
             if ('speechSynthesis' in window) {
-                window.speechSynthesis.cancel(); // Detener cualquier comando de voz previo
+                window.speechSynthesis.cancel();
                 let utterance = new SpeechSynthesisUtterance(mensaje);
                 utterance.lang = 'es-MX';
-                utterance.rate = 1.0;
                 window.speechSynthesis.speak(utterance);
             }
         }
 
-        // =========================================================================
-        // 3. CATÁLOGO METODOLÓGICO DE POSICIONES
-        // =========================================================================
+        // CATÁLOGO CON TRAZADO GEOMÉTRICO ROBUSTO
         const CATALOGO_POSICIONES = [
             {
                 id: "HeisokuDachi",
                 nombre: "Heisoku Dachi",
                 evaluar: (nodos, factorEscala) => {
-                    // Ambos pies juntos paralelos internos unidos
                     let distTalones = calcularDistancia2D(nodos.left_ankle, nodos.right_ankle);
-                    let maxDistTalones = (CONFIG.SUJETO_PRUEBA.TALON_A_PUNTA * 0.4) * factorEscala; // Muy pegados
-                    let extRodillaIzq = calcularAngulo(nodos.left_hip, nodos.left_knee, nodos.left_ankle);
-                    let extRodillaDer = calcularAngulo(nodos.right_hip, nodos.right_knee, nodos.right_ankle);
-                    
-                    return (distTalones <= maxDistTalones && extRodillaIzq >= 165 && extRodillaDer >= 165);
+                    let maxDist = (CONFIG.SUJETO_PRUEBA.TALON_A_PUNTA * 0.5) * factorEscala;
+                    let rIzq = calcularAngulo(nodos.left_hip, nodos.left_knee, nodos.left_ankle);
+                    let rDer = calcularAngulo(nodos.right_hip, nodos.right_knee, nodos.right_ankle);
+                    return (distTalones <= maxDist && rIzq >= 160 && rDer >= 160);
                 }
             },
             {
@@ -494,10 +448,9 @@
                 nombre: "Musubi Dachi",
                 evaluar: (nodos, factorEscala) => {
                     let distTalones = calcularDistancia2D(nodos.left_ankle, nodos.right_ankle);
-                    let maxDistTalones = (CONFIG.SUJETO_PRUEBA.TALON_A_PUNTA * 0.5) * factorEscala;
-                    // Ángulo entre pies ~45 grados totales
+                    let maxDist = (CONFIG.SUJETO_PRUEBA.TALON_A_PUNTA * 0.6) * factorEscala;
                     let anguloPies = calcularAnguloEntreVectores(nodos.left_ankle, nodos.left_foot, nodos.right_ankle, nodos.right_foot);
-                    return (distTalones <= maxDistTalones && verificarRango(anguloPies, 45, 12));
+                    return (distTalones <= maxDist && verificarRango(anguloPies, 45, 15));
                 }
             },
             {
@@ -505,10 +458,9 @@
                 nombre: "Heiko Dachi",
                 evaluar: (nodos, factorEscala) => {
                     let distTalones = calcularDistancia2D(nodos.left_ankle, nodos.right_ankle);
-                    let distCaderasEsperada = CONFIG.SUJETO_PRUEBA.ANCHO_CADERAS * factorEscala;
-                    // Pies paralelos apuntando al frente
-                    let anguloIzq = Math.abs(nodos.left_foot.x - nodos.left_ankle.x);
-                    return (verificarRango(distTalones, distCaderasEsperada, distCaderasEsperada * CONFIG.TOLERANCIA_PORCENTAJE) && anguloIzq < 0.05);
+                    let distEsperada = CONFIG.SUJETO_PRUEBA.ANCHO_CADERAS * factorEscala;
+                    let alineacionPies = Math.abs((nodos.left_foot.x - nodos.left_ankle.x) - (nodos.right_foot.x - nodos.right_ankle.x)) < 0.08;
+                    return (verificarRango(distTalones, distEsperada, distEsperada * 0.20) && alineacionPies);
                 }
             },
             {
@@ -516,25 +468,20 @@
                 nombre: "Hachiji Dachi",
                 evaluar: (nodos, factorEscala) => {
                     let distTalones = calcularDistancia2D(nodos.left_ankle, nodos.right_ankle);
-                    let distCaderasEsperada = CONFIG.SUJETO_PRUEBA.ANCHO_CADERAS * factorEscala;
+                    let distEsperada = CONFIG.SUJETO_PRUEBA.ANCHO_CADERAS * factorEscala;
                     let anguloPies = calcularAnguloEntreVectores(nodos.left_ankle, nodos.left_foot, nodos.right_ankle, nodos.right_foot);
-                    return (verificarRango(distTalones, distCaderasEsperada, distCaderasEsperada * CONFIG.TOLERANCIA_PORCENTAJE) && verificarRango(anguloPies, 45, 12));
+                    return (verificarRango(distTalones, distEsperada, distEsperada * 0.20) && verificarRango(anguloPies, 45, 15));
                 }
             },
             {
                 id: "NaifanchinDachi",
                 nombre: "Naifanchin Dachi",
                 evaluar: (nodos, factorEscala) => {
-                    let anguloPies = calcularAnguloEntreVectores(nodos.left_ankle, nodos.left_foot, nodos.right_ankle, nodos.right_foot);
-                    let rodillaIzq = calcularAngulo(nodos.left_hip, nodos.left_knee, nodos.left_ankle);
-                    let rodillaDer = calcularAngulo(nodos.right_hip, nodos.right_knee, nodos.right_ankle);
-                    
+                    let rIzq = calcularAngulo(nodos.left_hip, nodos.left_knee, nodos.left_ankle);
+                    let rDer = calcularAngulo(nodos.right_hip, nodos.right_knee, nodos.right_ankle);
                     let distCaderas = calcularDistancia2D(nodos.left_hip, nodos.right_hip);
                     let distRodillas = calcularDistancia2D(nodos.left_knee, nodos.right_knee);
-                    let relacionRodillaEspera = distCaderas * 0.8; // Reducción del 20%
-                    
-                    // Flexión ligera 20° equivale a 160° internos
-                    return (verificarRango(rodillaIzq, 160, 8) && verificarRango(rodillaDer, 160, 8) && distRodillas <= relacionRodillaEspera);
+                    return (rIzq < 168 && rDer < 168 && distRodillas < distCaderas);
                 }
             },
             {
@@ -542,14 +489,10 @@
                 nombre: "Shiko Dachi",
                 evaluar: (nodos, factorEscala) => {
                     let distTalones = calcularDistancia2D(nodos.left_ankle, nodos.right_ankle);
-                    let distEsperada = 90 * factorEscala; // Base 90 cm escalados
-                    
-                    let rodillaIzq = calcularAngulo(nodos.left_hip, nodos.left_knee, nodos.left_ankle);
-                    let rodillaDer = calcularAngulo(nodos.right_hip, nodos.right_knee, nodos.right_ankle);
-                    
-                    return (verificarRango(distTalones, distEsperada, distEsperada * CONFIG.TOLERANCIA_PORCENTAJE) &&
-                            verificarRango(rodillaIzq, 125, 125 * CONFIG.TOLERANCIA_PORCENTAJE) && 
-                            verificarRango(rodillaDer, 125, 125 * CONFIG.TOLERANCIA_PORCENTAJE));
+                    let distEsperada = 90 * factorEscala;
+                    let rIzq = calcularAngulo(nodos.left_hip, nodos.left_knee, nodos.left_ankle);
+                    let rDer = calcularAngulo(nodos.right_hip, nodos.right_knee, nodos.right_ankle);
+                    return (distTalones >= distEsperada * 0.85 && rIzq <= 140 && rDer <= 140);
                 }
             },
             {
@@ -557,20 +500,11 @@
                 nombre: "Moto Dachi",
                 evaluar: (nodos, factorEscala) => {
                     let esIzq = (estadoApp.guardia === "izquierdo");
-                    let nDelantero = esIzq ? nodos.left_knee : nodos.right_knee;
-                    let tDelantero = esIzq ? nodos.left_ankle : nodos.right_ankle;
-                    let rTrasera = esIzq ? calcularAngulo(nodos.right_hip, nodos.right_knee, nodos.right_ankle) : calcularAngulo(nodos.left_hip, nodos.left_knee, nodos.left_ankle);
                     let rDelantera = esIzq ? calcularAngulo(nodos.left_hip, nodos.left_knee, nodos.left_ankle) : calcularAngulo(nodos.right_hip, nodos.right_knee, nodos.right_ankle);
-                    
+                    let rTrasera = esIzq ? calcularAngulo(nodos.right_hip, nodos.right_knee, nodos.right_ankle) : calcularAngulo(nodos.left_hip, nodos.left_knee, nodos.left_ankle);
                     let distPies = calcularDistancia2D(nodos.left_ankle, nodos.right_ankle);
                     let distEsperada = 60 * factorEscala;
-                    
-                    // Rodilla delantera alineada verticalmente con su talón (coordenada X similar)
-                    let alineacionVertical = Math.abs(nDelantero.x - tDelantero.x) < 0.08;
-                    
-                    return (verificarRango(distPies, distEsperada, distEsperada * CONFIG.TOLERANCIA_PORCENTAJE) &&
-                            verificarRango(rDelantera, 130, 130 * CONFIG.TOLERANCIA_PORCENTAJE) &&
-                            rTrasera >= 170 && alineacionVertical);
+                    return (verificarRango(distPies, distEsperada, distEsperada * 0.25) && rDelantera < 145 && rTrasera > 165);
                 }
             },
             {
@@ -578,26 +512,15 @@
                 nombre: "Zenkutsu Dachi",
                 evaluar: (nodos, factorEscala) => {
                     let esIzq = (estadoApp.guardia === "izquierdo");
-                    let nDelantero = esIzq ? nodos.left_knee : nodos.right_knee;
-                    let tDelantero = esIzq ? nodos.left_ankle : nodos.right_ankle;
-                    let rTrasera = esIzq ? calcularAngulo(nodos.right_hip, nodos.right_knee, nodos.right_ankle) : calcularAngulo(nodos.left_hip, nodos.left_knee, nodos.left_ankle);
                     let rDelantera = esIzq ? calcularAngulo(nodos.left_hip, nodos.left_knee, nodos.left_ankle) : calcularAngulo(nodos.right_hip, nodos.right_knee, nodos.right_ankle);
-                    
+                    let rTrasera = esIzq ? calcularAngulo(nodos.right_hip, nodos.right_knee, nodos.right_ankle) : calcularAngulo(nodos.left_hip, nodos.left_knee, nodos.left_ankle);
                     let distPies = calcularDistancia2D(nodos.left_ankle, nodos.right_ankle);
                     let distEsperada = 85 * factorEscala;
-                    
-                    let alineacionVertical = Math.abs(nDelantero.x - tDelantero.x) < 0.08;
-                    
-                    return (verificarRango(distPies, distEsperada, distEsperada * CONFIG.TOLERANCIA_PORCENTAJE) &&
-                            verificarRango(rDelantera, 110, 110 * CONFIG.TOLERANCIA_PORCENTAJE) &&
-                            rTrasera >= 170 && alineacionVertical);
+                    return (distPies >= distEsperada * 0.80 && rDelantera <= 125 && rTrasera >= 165);
                 }
             }
         ];
 
-        // =========================================================================
-        // 4. AUXILIARES MATEMÁTICOS BIOMECÁNICOS
-        // =========================================================================
         function calcularDistancia2D(p1, p2) {
             return Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
         }
@@ -605,11 +528,10 @@
         function calcularAngulo(pA, pB, pC) {
             let ab = { x: pA.x - pB.x, y: pA.y - pB.y };
             let cb = { x: pC.x - pB.x, y: pC.y - pB.y };
-            let dotProduct = ab.x * cb.x + ab.y * cb.y;
-            let normAB = Math.sqrt(ab.x * ab.x + ab.y * ab.y);
-            let normCB = Math.sqrt(cb.x * cb.x + cb.y * cb.y);
-            let angle = Math.acos(dotProduct / (normAB * normCB));
-            return angle * (180 / Math.PI);
+            let dot = ab.x * cb.x + ab.y * cb.y;
+            let nAB = Math.sqrt(ab.x * ab.x + ab.y * ab.y);
+            let nCB = Math.sqrt(cb.x * cb.x + cb.y * cb.y);
+            return Math.acos(dot / (nAB * nCB)) * (180 / Math.PI);
         }
 
         function calcularAnguloEntreVectores(p1A, p1B, p2A, p2B) {
@@ -621,13 +543,10 @@
             return Math.acos(dot / (n1 * n2)) * (180 / Math.PI);
         }
 
-        function verificarRango(valor, objetivo, tolerancia) {
-            return valor >= (objetivo - tolerancia) && valor <= (objetivo + tolerancia);
+        function verificarRango(valor, objetivo, tol) {
+            return valor >= (objetivo - tol) && valor <= (objetivo + tol);
         }
 
-        // =========================================================================
-        // 5. CONTROLADORES DE EVENTOS DE INTERFAZ Y FLUJO (TIMERS)
-        // =========================================================================
         const DOM = {
             btnStart: document.getElementById('btn-start'),
             setupPanel: document.getElementById('setup-panel'),
@@ -650,8 +569,8 @@
         DOM.btnStart.addEventListener('click', iniciarEntrenamiento);
 
         function iniciarEntrenamiento() {
-            estadoApp.nombreAlumno = document.getElementById('input-name').value.trim() || "Alumno Anónimo";
-            estadoApp.estaturaAlumno = parseFloat(document.getElementById('input-height').value) || 170;
+            estadoApp.nombreAlumno = document.getElementById('input-name').value.trim() || "Alumno Senshi-Kan";
+            estadoApp.estaturaAlumno = parseFloat(document.getElementById('input-height').value) || 174;
             estadoApp.guardia = document.getElementById('select-guard').value;
             estadoApp.camaraSeleccionada = document.getElementById('select-camera').value;
 
@@ -668,20 +587,14 @@
         }
 
         function encenderMotoresTimers() {
-            // Reloj Maestro de 2 Minutos (Ininterrumpido)
             estadoApp.intervaloMaestro = setInterval(() => {
                 estadoApp.tiempoMaestroRestante--;
-                
                 let min = Math.floor(estadoApp.tiempoMaestroRestante / 60);
                 let seg = estadoApp.tiempoMaestroRestante % 60;
                 DOM.txtMaster.innerText = `${min.toString().padStart(2, '0')}:${seg.toString().padStart(2, '0')}`;
-
-                if (estadoApp.tiempoMaestroRestante <= 0) {
-                    finalizarPruebaGlobal();
-                }
+                if (estadoApp.tiempoMaestroRestante <= 0) finalizarPruebaGlobal();
             }, 1000);
 
-            // Reloj Principal (20s y Retención 5s) ejecutándose a centésimas
             let ultimoTiempo = performance.now();
             function bucleTimers(ahora) {
                 if (!estadoApp.pruebaActiva) return;
@@ -689,18 +602,10 @@
                 ultimoTiempo = ahora;
 
                 if (!estadoApp.posturaConectada) {
-                    // Estado 1: Buscando postura (corre timer principal descendentemente)
                     estadoApp.tiempoPrincipalRestante -= delta;
                     if (estadoApp.tiempoPrincipalRestante < 0) estadoApp.tiempoPrincipalRestante = 0;
-
                     DOM.txtPrincipal.innerText = estadoApp.tiempoPrincipalRestante.toFixed(2);
-                    
-                    // Feedback visual por tiempo crítico
-                    if (estadoApp.tiempoPrincipalRestante <= 5) {
-                        DOM.txtPrincipal.style.color = CONFIG.color_error;
-                    } else {
-                        DOM.txtPrincipal.style.color = CONFIG.color_primary;
-                    }
+                    DOM.txtPrincipal.style.color = (estadoApp.tiempoPrincipalRestante <= 5) ? CONFIG.color_error : CONFIG.color_primary;
 
                     if (estadoApp.tiempoPrincipalRestante <= 0) {
                         sonarBuzzer();
@@ -709,13 +614,10 @@
                         siguientePosicion();
                     }
                 } else {
-                    // Estado 2: Postura conectada (se congela principal, corre retención)
                     estadoApp.tiempoRetencionAcumulado += delta;
-                    DOM.txtRetencion.innerText = estadoApp.tiempoRetencionAcumulado.toFixed(1) + "s";
+                    DOM.txtRetencion.innerText = `${estadoApp.tiempoRetencionAcumulado.toFixed(1)}s / 5s`;
 
                     if (estadoApp.tiempoRetencionAcumulado >= CONFIG.TIEMPO_RETENCION_REQUERIDO) {
-                        sonarBeep();
-                        hablar("Logrado");
                         estadoApp.score++;
                         DOM.txtScore.innerText = estadoApp.score;
                         estadoApp.historialResultados.push({ nombre: estadoApp.posicionActual.nombre, logrado: true });
@@ -728,64 +630,46 @@
         }
 
         function siguientePosicion() {
-            if (estadoApp.catalogoLocal.length === 0) {
-                // Si agota las 8 posiciones antes de los 2 minutos, vuelve a rellenar el pool para modo infinito por tiempo
-                estadoApp.catalogoLocal = [...CATALOGO_POSICIONES];
-            }
-
-            let indiceAleatorio = Math.floor(Math.random() * estadoApp.catalogoLocal.length);
-            estadoApp.posicionActual = estadoApp.catalogoLocal.splice(indiceAleatorio, 1)[0];
+            if (estadoApp.catalogoLocal.length === 0) estadoApp.catalogoLocal = [...CATALOGO_POSICIONES];
+            let ind = Math.floor(Math.random() * estadoApp.catalogoLocal.length);
+            estadoApp.posicionActual = estadoApp.catalogoLocal.splice(ind, 1)[0];
             
             estadoApp.tiempoPrincipalRestante = CONFIG.TIEMPO_VENTANA_POSTURA;
             estadoApp.tiempoRetencionAcumulado = 0;
             estadoApp.posturaConectada = false;
 
             DOM.txtTarget.innerText = estadoApp.posicionActual.nombre;
-            DOM.txtRetencion.innerText = "0.0s";
-
+            DOM.txtRetencion.innerText = "0.0s / 5s";
             hablar(`Ahora haz ${estadoApp.posicionActual.nombre}`);
         }
 
         function finalizarPruebaGlobal() {
             estadoApp.pruebaActiva = false;
             clearInterval(estadoApp.intervaloMaestro);
-            
-            // Apagar cámara web de forma segura
-            if (DOM.video.srcObject) {
-                DOM.video.srcObject.getTracks().forEach(track => track.stop());
-            }
+            if (DOM.video.srcObject) DOM.video.srcObject.getTracks().forEach(t => t.stop());
 
-            // Renderizar Modal de Resultados
             DOM.resStudent.innerText = estadoApp.nombreAlumno;
-            DOM.resDate.innerText = new Date().toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            DOM.resDate.innerText = new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
             DOM.resScore.innerText = estadoApp.score;
 
             DOM.resTableBody.innerHTML = "";
             estadoApp.historialResultados.forEach(res => {
-                let fila = document.createElement('tr');
-                fila.innerHTML = `
-                    <td>${res.nombre}</td>
-                    <td class="${res.logrado ? 'status-ok' : 'status-fail'}">${res.logrado ? 'LOGRADA (+1)' : 'NO LOGRADA'}</td>
-                `;
-                DOM.resTableBody.appendChild(fila);
+                let f = document.createElement('tr');
+                f.innerHTML = `<td>${res.nombre}</td><td class="${res.logrado ? 'status-ok' : 'status-fail'}">${res.logrado ? 'LOGRADA (+1)' : 'NO LOGRADA'}</td>`;
+                DOM.resTableBody.appendChild(f);
             });
-
             DOM.modalResults.style.display = 'flex';
         }
 
-        // =========================================================================
-        // 6. MOTOR DE VISIÓN COMPUTACIONAL (MediaPipe & Canvas Drawing)
-        // =========================================================================
         let detector;
         let ctx = DOM.canvas.getContext('2d');
 
         async function setupCamera() {
             const stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: estadoApp.camaraSeleccionada, width: 640, height: 480 },
+                video: { facingMode: estadoApp.camaraSeleccionada, width: { ideal: 640 }, height: { ideal: 480 } },
                 audio: false
             });
             DOM.video.srcObject = stream;
-            
             DOM.video.onloadedmetadata = () => {
                 DOM.canvas.width = DOM.video.videoWidth;
                 DOM.canvas.height = DOM.video.videoHeight;
@@ -794,13 +678,11 @@
         }
 
         async function inicializarPoseDetection() {
-            const model = poseDetection.SupportedModels.BlazePose;
-            const detectorConfig = {
+            detector = await poseDetection.createDetector(poseDetection.SupportedModels.BlazePose, {
                 runtime: 'mediapipe',
                 solutionPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/pose',
                 modelType: 'full'
-            };
-            detector = await poseDetection.createDetector(model, detectorConfig);
+            });
             detectarFrame();
         }
 
@@ -809,72 +691,65 @@
 
             const poses = await detector.estimatePoses(DOM.video, { flipHorizontal: (estadoApp.camaraSeleccionada === "user") });
             
+            // LIMPIEZA TOTAL DEL LIENZO PARA ELIMINAR CUADRADOS GENÉRICOS
             ctx.clearRect(0, 0, DOM.canvas.width, DOM.canvas.height);
-            // Dibujamos el cuadro de video de fondo de forma limpia
-            ctx.drawImage(DOM.video, 0, 0, DOM.canvas.width, DOM.canvas.height);
 
             if (poses.length > 0) {
-                const keypoints = poses[0].keypoints;
-                
-                // Mapeo estructurado de nodos requeridos del tren inferior
+                const kp = poses[0].keypoints;
                 const nodos = {
-                    left_hip: keypoints.find(k => k.name === 'left_hip'),
-                    right_hip: keypoints.find(k => k.name === 'right_hip'),
-                    left_knee: keypoints.find(k => k.name === 'left_knee'),
-                    right_knee: keypoints.find(k => k.name === 'right_knee'),
-                    left_ankle: keypoints.find(k => k.name === 'left_ankle'),
-                    right_ankle: keypoints.find(k => k.name === 'right_ankle'),
-                    left_foot: keypoints.find(k => k.name === 'left_foot_index'),
-                    right_foot: keypoints.find(k => k.name === 'right_foot_index')
+                    left_hip: kp.find(k => k.name === 'left_hip'),
+                    right_hip: kp.find(k => k.name === 'right_hip'),
+                    left_knee: kp.find(k => k.name === 'left_knee'),
+                    right_knee: kp.find(k => k.name === 'right_knee'),
+                    left_ankle: kp.find(k => k.name === 'left_ankle'),
+                    right_ankle: kp.find(k => k.name === 'right_ankle'),
+                    left_foot: kp.find(k => k.name === 'left_foot_index'),
+                    right_foot: kp.find(k => k.name === 'right_foot_index')
                 };
 
-                // Validamos que los nodos críticos tengan suficiente confianza de detección
-                const umbralConfianza = 0.5;
-                let todosVisibles = Object.values(nodos).every(n => n && n.score > umbralConfianza);
+                // Umbral de visibilidad adaptativo para asegurar tracking completo en piso
+                let todosVisibles = Object.values(nodos).every(n => n && n.score > 0.45);
 
                 if (todosVisibles) {
-                    // Render de nodos únicamente (Sin líneas estructurales)
-                    dibujarNodo(ctx, nodos.right_hip, CONFIG.color_right_node);
-                    dibujarNodo(ctx, nodos.right_knee, CONFIG.color_right_node);
-                    dibujarNodo(ctx, nodos.right_ankle, CONFIG.color_right_node);
-                    dibujarNodo(ctx, nodos.right_foot, CONFIG.color_right_node);
+                    // DIBUJO EXCLUSIVO DE PUNTOS CIRCULARES
+                    dibujarPunto(ctx, nodos.right_hip, CONFIG.color_right_node);
+                    dibujarPunto(ctx, nodos.right_knee, CONFIG.color_right_node);
+                    dibujarPunto(ctx, nodos.right_ankle, CONFIG.color_right_node);
+                    dibujarPunto(ctx, nodos.right_foot, CONFIG.color_right_node);
 
-                    dibujarNodo(ctx, nodos.left_hip, CONFIG.color_left_node);
-                    dibujarNodo(ctx, nodos.left_knee, CONFIG.color_left_node);
-                    dibujarNodo(ctx, nodos.left_ankle, CONFIG.color_left_node);
-                    dibujarNodo(ctx, nodos.left_foot, CONFIG.color_left_node);
+                    dibujarPunto(ctx, nodos.left_hip, CONFIG.color_left_node);
+                    dibujarPunto(ctx, nodos.left_knee, CONFIG.color_left_node);
+                    dibujarPunto(ctx, nodos.left_ankle, CONFIG.color_left_node);
+                    dibujarPunto(ctx, nodos.left_foot, CONFIG.color_left_node);
 
-                    // Factor dinámico de escala basado en pixeles vs la estatura real del alumno
-                    let pxEstaturaEnPantalla = calcularDistancia2D(nodos.left_hip, nodos.left_ankle); 
-                    let factorEscala = pxEstaturaEnPantalla / CONFIG.SUJETO_PRUEBA.TALON_A_CADERA;
+                    // Normalización proporcional basada en el fémur/tibia en pantalla
+                    let pxEstatura = calcularDistancia2D(nodos.left_hip, nodos.left_ankle);
+                    let factorEscala = pxEstatura / CONFIG.SUJETO_PRUEBA.TALON_A_CADERA;
 
-                    // EVALUACIÓN BIOMECÁNICA EN TIEMPO REAL
                     let cumplePostura = estadoApp.posicionActual.evaluar(nodos, factorEscala);
 
                     if (cumplePostura && !estadoApp.posturaConectada) {
-                        // Conexión exitosa inicial
                         estadoApp.posturaConectada = true;
                         sonarBeep();
                     } else if (!cumplePostura && estadoApp.posturaConectada) {
-                        // Desconexión prematura de la postura
                         estadoApp.posturaConectada = false;
                         estadoApp.tiempoRetencionAcumulado = 0;
                         sonarBuzzer();
                     }
                 }
             }
-
             requestAnimationFrame(detectarFrame);
         }
 
-        function dibujarNodo(canvasCtx, nodo, color) {
-            canvasCtx.beginPath();
-            canvasCtx.arc(nodo.x, nodo.y, 8, 0, 2 * Math.PI);
-            canvasCtx.fillStyle = color;
-            canvasCtx.fill();
-            canvasCtx.lineWidth = 2;
-            canvasCtx.strokeStyle = '#ffffff';
-            canvasCtx.stroke();
+        function dibujarPunto(cCtx, nd, color) {
+            cCtx.beginPath();
+            cCtx.arc(nd.x, nd.y, 7, 0, 2 * Math.PI); // Puntos limpios de 7px
+            cCtx.fillStyle = color;
+            cCtx.fill();
+            cCtx.lineWidth = 2;
+            cCtx.strokeStyle = '#ffffff';
+            cCtx.stroke();
+            cCtx.closePath();
         }
     </script>
 </body>
