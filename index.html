@@ -217,7 +217,7 @@
             background-color: #000;
             border-radius: 8px;
             overflow: hidden;
-            border: 2px solid var(--color-surface);
+            border: 2px solid var(--surface);
             min-height: 0;
         }
 
@@ -281,6 +281,7 @@
             letter-spacing: 1px;
         }
 
+        /* AJUSTE METODOLÓGICO: Modal extendido sin scroll para capturas limpias */
         .modal-results {
             display: none;
             position: fixed;
@@ -291,8 +292,9 @@
             background-color: rgba(0,0,0,0.95);
             z-index: 10;
             justify-content: center;
-            align-items: center;
-            padding: 15px;
+            align-items: flex-start; /* Permite alineación superior si la pantalla es pequeña */
+            padding: 20px 15px;
+            overflow-y: auto; /* El scroll ahora pertenece a la pantalla completa si es necesario, no al cuadro */
         }
 
         .results-card {
@@ -300,8 +302,9 @@
             border: 2px solid var(--color-primary);
             border-radius: 8px;
             width: 100%;
-            max-width: 400px;
-            padding: 15px;
+            max-width: 420px;
+            padding: 20px;
+            margin: auto 0; /* Centrado vertical natural */
         }
 
         .results-header {
@@ -325,10 +328,16 @@
             margin: 5px 0;
         }
 
+        /* Contenedor de la tabla extendido verticalmente al 100% */
+        .table-wrapper {
+            margin-top: 12px;
+            width: 100%;
+        }
+
         .table-results {
             width: 100%;
             border-collapse: collapse;
-            font-size: 0.8rem;
+            font-size: 0.85rem;
         }
 
         .table-results th, .table-results td {
@@ -347,7 +356,7 @@
         .slogan {
             text-align: center;
             font-style: italic;
-            margin-top: 15px;
+            margin-top: 20px;
             color: var(--color-text-muted);
             font-size: 0.75rem;
         }
@@ -364,13 +373,12 @@
         <!-- Panel de Configuración Inicial -->
         <div class="card" id="setup-panel">
             
-            <!-- Selector de Modos (Etiquetas limpias sin porcentajes) -->
             <div class="form-group">
                 <label>Modo de Competencia</label>
                 <div class="mode-selector">
                     <button type="button" class="btn-mode active" id="mode-principiante" onclick="seleccionarModo('principiante', 0.50, 'Principiante')">Principiante</button>
                     <button type="button" class="btn-mode" id="mode-intermedio" onclick="seleccionarModo('intermedio', 0.35, 'Intermedio')">Intermedio</button>
-                    <button type="button" class="btn-mode" id="mode-avanzado" onclick="seleccionarModo('avanzado', 0.20, 'Avanzado')">Avanzado</button>
+                    <button type="button" class="btn-mode" id="mode-avanzado" onclick="seleccionarModo('avanzado', 0.25, 'Avanzado')">Avanzado</button>
                 </div>
             </div>
 
@@ -430,20 +438,20 @@
         </div>
     </div>
 
-    <!-- Modal de Resultados Finales -->
+    <!-- Modal de Resultados Finales (Modificado para visualización vertical completa) -->
     <div class="modal-results" id="modal-results">
         <div class="results-card">
             <div class="results-header">
                 <h2>Evaluación Finalizada</h2>
                 <div class="student-name" id="res-student" style="font-size: 1.1rem; font-weight: bold; margin-top: 3px;">---</div>
-                <!-- Sección añadida para registrar el modo de competencia -->
                 <div id="res-mode" style="font-size: 0.85rem; color: var(--color-primary); font-weight: bold; text-transform: uppercase; margin-top: 2px;">MODO: ---</div>
                 <p id="res-date" style="font-size: 0.75rem; color: var(--color-text-muted); margin-top: 3px;"></p>
             </div>
             <div class="score-final" id="res-score">0%</div>
             <p style="text-align: center; font-size: 0.85rem; margin-bottom: 10px; color: var(--color-text-muted);" id="res-total-logradas"></p>
             
-            <div style="max-height: 150px; overflow-y: auto; margin-top: 10px;">
+            <!-- Sin restricciones de altura para permitir captura completa -->
+            <div class="table-wrapper">
                 <table class="table-results">
                     <thead>
                         <tr>
@@ -456,7 +464,7 @@
             </div>
 
             <div class="slogan">ACADEMIA DE KARATE SENSHI-KAN<br>"VENCE TUS LÍMITES"</div>
-            <button class="btn" style="margin-top: 15px;" id="btn-restart-app">Reiniciar</button>
+            <button class="btn" style="margin-top: 15px;" id="btn-restart-app">Reiniciar Prueba</button>
         </div>
     </div>
 
@@ -465,7 +473,7 @@
             TIEMPO_MAESTRO_TOTAL: 120,
             TIEMPO_VENTANA_POSTURA: 20,
             TIEMPO_RETENCION_REQUERIDO: 5,
-            TOLERANCIA_PORCENTAJE: 0.50, 
+            TOLERANCIA_PORCENTAJE: 0.50, // Forzado por defecto inicial para Principiante
             BASE_MAX_POSICIONES: 15,
             color_error: '#ff3333',
             color_primary: '#e6b800',
@@ -485,7 +493,7 @@
             estaturaAlumno: 174,
             guardia: "izquierdo",
             camaraSeleccionada: "user",
-            modoTextoActual: "Principiante", // Guardado de cadena para interactuar con la voz y el modal
+            modoTextoActual: "Principiante", // Alineado correctamente con el estado por defecto inicial
             tiempoMaestroRestante: CONFIG.TIEMPO_MAESTRO_TOTAL,
             tiempoPrincipalRestante: CONFIG.TIEMPO_VENTANA_POSTURA,
             tiempoRetencionAcumulado: 0,
@@ -502,6 +510,7 @@
         let detector;
         let ctx = document.getElementById('output-canvas').getContext('2d');
 
+        // FUNCIÓN CORREGIDA: Fuerza el mapeo directo a CONFIG sin perder el valor en ejecuciones posteriores
         function seleccionarModo(idBoton, valorTolerancia, nombreTexto) {
             CONFIG.TOLERANCIA_PORCENTAJE = valorTolerancia;
             estadoApp.modoTextoActual = nombreTexto;
@@ -618,7 +627,7 @@
             {
                 id: "MotoDachi",
                 nombre: "Moto Dachi",
-                nombreAudio: "Moto Dachi Lateral", // Añadido "Lateral" por requerimiento espacial
+                nombreAudio: "Moto Dachi Lateral",
                 evaluar: (nodos, factorEscala) => {
                     let esIzq = (estadoApp.guardia === "izquierdo");
                     let rDelantera = esIzq ? calcularAngulo(nodos.left_hip, nodos.left_knee, nodos.left_ankle) : calcularAngulo(nodos.right_hip, nodos.right_knee, nodos.right_ankle);
@@ -630,7 +639,7 @@
             {
                 id: "ZenkutsuDachi",
                 nombre: "Zenkutsu Dachi",
-                nombreAudio: "Zenkutsu Dachi Lateral", // Añadido "Lateral" por requerimiento espacial
+                nombreAudio: "Zenkutsu Dachi Lateral",
                 evaluar: (nodos, factorEscala) => {
                     let esIzq = (estadoApp.guardia === "izquierdo");
                     let rDelantera = esIzq ? calcularAngulo(nodos.left_hip, nodos.left_knee, nodos.left_ankle) : calcularAngulo(nodos.right_hip, nodos.right_knee, nodos.right_ankle);
@@ -649,7 +658,7 @@
             let ab = { x: pA.x - pB.x, y: pA.y - pB.y };
             let cb = { x: pC.x - pB.x, y: pC.y - pB.y };
             let dot = ab.x * cb.x + ab.y * cb.y;
-            let nAB = Math.sqrt(ab.x * ab.x + Math.y * ab.y);
+            let nAB = Math.sqrt(ab.x * ab.x + ab.y * ab.y);
             let nCB = Math.sqrt(cb.x * cb.x + cb.y * cb.y);
             let val = dot / (nAB * nCB);
             if (val > 1) val = 1; if (val < -1) val = -1;
@@ -766,8 +775,6 @@
             });
 
             DOM.prepCountdownContainer.style.display = 'block';
-            
-            // Comando de voz inicial modificado para incluir dinámicamente el modo seleccionado
             hablar(`Realiza las posiciones que te voy a pedir a continuación en modo ${estadoApp.modoTextoActual}`, ejecutarConteoInicial);
         }
 
@@ -857,7 +864,6 @@
             DOM.txtRetencion.innerText = "0.0s / 5s";
             DOM.txtRetencion.style.color = CONFIG.color_primary;
             
-            // Ejecuta el audio con el nombre modificado si requiere orientación lateral
             hablar(`${estadoApp.posicionActual.nombreAudio}`);
         }
 
@@ -869,7 +875,6 @@
             let calificacionFinal = Math.min(100, Math.round((estadoApp.score * 100) / CONFIG.BASE_MAX_POSICIONES));
 
             DOM.resStudent.innerText = estadoApp.nombreAlumno;
-            // Incluye de manera explícita el modo de competencia en el contenedor del modal
             DOM.resMode.innerText = `MODO: ${estadoApp.modoTextoActual}`;
             DOM.resDate.innerText = new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
             DOM.resScore.innerText = `${calificacionFinal}%`;
@@ -883,7 +888,7 @@
             });
             DOM.modalResults.style.display = 'flex';
 
-            let locucionFinal = `Prueba finalizada en modo ${estadoApp.modoTextoActual}. Aquí tienes tu resultado, ${estadoApp.nombreAlumno}. Obtuviste una calificación de ${calificacionFinal}. Te invito a que lo sigas intentando.`;
+            let locucionFinal = `Prueba finalizada en modo ${estadoApp.modoTextoActual}. Aquí tienes tu resultado, ${estadoApp.nombreAlumno}. Obtuviste una calificación de ${calificacionFinal}.`;
             hablar(locucionFinal);
         }
 
@@ -943,6 +948,7 @@
                     let pxEstatura = calcularDistancia2D(nodos.left_hip, nodos.left_ankle);
                     let factorEscala = pxEstatura / CONFIG.SUJETO_PRUEBA.TALON_A_CADERA;
 
+                    // EJECUCIÓN DEL MOTOR: Evalúa con las variables de tolerancia perfectamente blindadas.
                     let cumplePostura = estadoApp.posicionActual.evaluar(nodos, factorEscala);
 
                     if (cumplePostura && !estadoApp.posturaConectada) {
