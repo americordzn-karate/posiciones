@@ -5,18 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Senshi-Kan Kinematic & Biometric Analyzer</title>
     
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core@3.11.0/dist/tfjs-core.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter@3.11.0/dist/tfjs-converter.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl@3.11.0/dist/tfjs-backend-webgl.min.js"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/pose.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@1.0.2/dist/pose-detection.min.js"></script>
+
     <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
-
     <script>
-        // Forzar banderas de producción para silenciar cualquier advertencia restante en los kernels compartidos
-        window.addEventListener('DOMContentLoaded', () => {
-            if (typeof tf !== 'undefined') {
-                tf.env().set('PROD', true);
-                tf.env().set('DEBUG', false);
+        // Verificación y configuración segura del entorno de producción de TensorFlow
+        window.addEventListener('load', () => {
+            try {
+                if (typeof tf !== 'undefined' && tf.env) {
+                    tf.env().set('PROD', true);
+                    tf.env().set('DEBUG', false);
+                } else if (typeof tf !== 'undefined' && tf.ENV) {
+                    // Variante por si la versión interna mapea el objeto en mayúsculas
+                    tf.ENV.set('PROD', true);
+                    tf.ENV.set('DEBUG', false);
+                }
+            } catch (e) {
+                console.log("Aviso de inicialización de entorno omitido de forma segura.");
             }
         });
     </script>
@@ -795,14 +806,13 @@
             DOM.loadingOverlay.style.display = 'block';
 
             try {
-                // SOLUCIÓN AL CONFLICTO: face-api ya inyectó tf en el objeto global de ventana.
-                // Cargamos pesos directamente sin volver a registrar fábricas WebGL.
+                // Descarga limpia y asíncrona de los descriptores biométricos
                 const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
                 await faceapi.nets.ssdliteMobilenetv1.loadFromUri(MODEL_URL);
                 await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
                 await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
 
-                // SOLUCIÓN CORS: Petición transparente para sincronización en la nube Senshi-Kan
+                // Enlace de respaldo transparente para la base remota de Senshi-Kan
                 try {
                     await fetch("https://script.google.com/macros/s/AKfycbybcoO_h2T_0P6X-mX336X8i9616Xm7ImsiQun9R6V-U0OOf6rL6gY8T1bH2R8y6qg/exec", { 
                         method: 'GET',
@@ -898,7 +908,6 @@
         }
 
         async function inicializarPoseDetection() {
-            // El backend WebGL global ya está configurado y compartido gracias a face-api.
             detector = await poseDetection.createDetector(poseDetection.SupportedModels.BlazePose, {
                 runtime: 'mediapipe',
                 solutionPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/pose',
