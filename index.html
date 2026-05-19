@@ -4,8 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Senshi-Kan Evaluador de Posiciones</title>
-    <link rel="icon" type="image/png" href="favicon.png">
-    <!-- MediaPipe y TensorFlow.js -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
@@ -169,16 +167,18 @@
             color: var(--color-text-muted);
         }
 
+        /* AJUSTE FINO: Nombre de posición más grande para lectura a distancia */
         .target-pose {
             grid-column: 1 / -1;
-            font-size: 1.1rem;
-            font-weight: bold;
+            font-size: 1.6rem; 
+            font-weight: 900;
             color: var(--color-primary);
             text-transform: uppercase;
-            border: 1px dashed var(--color-primary);
-            padding: 6px;
+            border: 2px dashed var(--color-primary);
+            padding: 10px;
             border-radius: 4px;
-            background: rgba(230, 184, 0, 0.05);
+            background: rgba(230, 184, 0, 0.07);
+            letter-spacing: 1px;
         }
 
         .timer-principal {
@@ -282,7 +282,6 @@
             letter-spacing: 1px;
         }
 
-        /* Modal extendido sin scroll para capturas limpias */
         .modal-results {
             display: none;
             position: fixed;
@@ -370,7 +369,6 @@
     </header>
 
     <div class="container">
-        <!-- Panel de Configuración Inicial -->
         <div class="card" id="setup-panel">
             
             <div class="form-group">
@@ -410,12 +408,10 @@
             <button class="btn" id="btn-start">Iniciar Evaluación</button>
         </div>
 
-        <!-- Feedback de carga de sensores -->
         <div class="card" id="loading-overlay">
             <span id="loading-text">Cargando Motores de Visión Artificial Inteligente...</span>
         </div>
 
-        <!-- Panel de Ejecución -->
         <div class="card" id="test-panel" style="display: none;">
             <div class="dashboard">
                 <div class="timer-master">Tiempo Maestro: <span id="txt-master" style="color:#fff; font-weight:bold;">02:00</span></div>
@@ -426,7 +422,6 @@
             </div>
         </div>
 
-        <!-- Recuadro del Video -->
         <div class="video-box" id="video-container" style="display: none;">
             <video id="webcam" autoplay playsinline muted></video>
             <canvas id="output-canvas"></canvas>
@@ -438,7 +433,6 @@
         </div>
     </div>
 
-    <!-- Modal de Resultados Finales -->
     <div class="modal-results" id="modal-results">
         <div class="results-card">
             <div class="results-header">
@@ -592,7 +586,7 @@
             {
                 id: "HachiyiDachi",
                 nombre: "Hachiji Dachi",
-                nombreAudio: "Hachiji Dachi",
+                nombreAudio: "Hachiyi Dachi", // Modificado por referencia técnica
                 evaluar: (nodos, factorEscala) => {
                     let distTalones = calcularDistancia2D(nodos.left_ankle, nodos.right_ankle);
                     let distEsperada = CONFIG.SUJETO_PRUEBA.ANCHO_CADERAS * factorEscala;
@@ -647,47 +641,45 @@
                 }
             },
             {
-    id: "NekoAshiDachi",
-    nombre: "Nekoashi Dachi",
-    nombreAudio: "Nekoashi Dachi Lateral",
-    evaluar: (nodos, factorEscala) => {
-        let esIzq = (estadoApp.guardia === "izquierdo");
-        
-        // Identificación de segmentos según la guardia lateral
-        let caderaAtrasada = esIzq ? nodos.right_hip : nodos.left_hip;
-        let rodillaAtrasada = esIzq ? nodos.right_knee : nodos.left_knee;
-        let tobilloAtrasado = esIzq ? nodos.right_ankle : nodos.left_ankle;
-        
-        let caderaAdelantada = esIzq ? nodos.left_hip : nodos.right_hip;
-        let rodillaAdelantada = esIzq ? nodos.left_knee : nodos.left_knee;
-        let tobilloAdelantado = esIzq ? nodos.left_ankle : nodos.right_ankle;
-        let pieAdelantado = esIzq ? nodos.left_foot : nodos.right_foot;
-        let pieAtrasado = esIzq ? nodos.right_foot : nodos.left_foot;
+                id: "NekoAshiDachi",
+                nombre: "Nekoashi Dachi",
+                nombreAudio: "Nekoashi Dachi Lateral",
+                evaluar: (nodos, factorEscala) => {
+                    let esIzq = (estadoApp.guardia === "izquierdo");
+                    
+                    let caderaAtrasada = esIzq ? nodos.right_hip : nodos.left_hip;
+                    let rodillaAtrasada = esIzq ? nodos.right_knee : nodos.left_knee;
+                    let tobilloAtrasado = esIzq ? nodos.right_ankle : nodos.left_ankle;
+                    
+                    let caderaAdelantada = esIzq ? nodos.left_hip : nodos.right_hip;
+                    let rodillaAdelantada = esIzq ? nodos.left_knee : nodos.right_knee;
+                    let tobilloAdelantado = esIzq ? nodos.left_ankle : nodos.right_ankle;
+                    let pieAdelantado = esIzq ? nodos.left_foot : nodos.right_foot;
+                    let pieAtrasado = esIzq ? nodos.right_foot : nodos.left_foot;
 
-        // 1. Pierna Atrasada: Rodilla flexionada a 150 grados
-        let anguloRodillaAtrasada = calcularAngulo(caderaAtrasada, rodillaAtrasada, tobilloAtrasado);
-        let rodillaAtrasadaOk = verificarRango(anguloRodillaAtrasada, 150, 150 * CONFIG.TOLERANCIA_PORCENTAJE);
+                    // 1. Pierna Atrasada: Rodilla flexionada a 150 grados
+                    let anguloRodillaAtrasada = calcularAngulo(caderaAtrasada, rodillaAtrasada, tobilloAtrasado);
+                    let rodillaAtrasadaOk = verificarRango(anguloRodillaAtrasada, 150, 150 * CONFIG.TOLERANCIA_PORCENTAJE);
 
-        // 2. Pierna Adelantada: Rodilla flexionada a 130 grados
-        let anguloRodillaAdelantada = calcularAngulo(caderaAdelantada, rodillaAdelantada, tobilloAdelantado);
-        let rodillaAdelantadaOk = verificarRango(anguloRodillaAdelantada, 130, 130 * CONFIG.TOLERANCIA_PORCENTAJE);
+                    // 2. Pierna Adelantada: Rodilla flexionada a 130 grados
+                    let anguloRodillaAdelantada = calcularAngulo(caderaAdelantada, rodillaAdelantada, tobilloAdelantado);
+                    let rodillaAdelantadaOk = verificarRango(anguloRodillaAdelantada, 130, 130 * CONFIG.TOLERANCIA_PORCENTAJE);
 
-        // 3. Distancia entre puntas de pies: Exactamente 28 cm (convertidos a píxeles con el factor de escala)
-        let distEntrePuntas = calcularDistancia2D(pieAdelantado, pieAtrasado);
-        let distEsperadaPx = 28 * factorEscala;
-        // Aplicamos la tolerancia configurada para permitir flexibilidad según el nivel (Principiante, Intermedio, Avanzado)
-        let distanciaPiesOk = verificarRango(distEntrePuntas, distEsperadaPx, distEsperadaPx * CONFIG.TOLERANCIA_PORCENTAJE);
+                    // 3. Distancia entre puntas: Ajustada a 24 centímetros por referencia técnica
+                    let distEntrePuntas = calcularDistancia2D(pieAdelantado, pieAtrasado);
+                    let distEsperadaPx = 24 * factorEscala;
+                    let distanciaPiesOk = verificarRango(distEntrePuntas, distEsperadaPx, distEsperadaPx * CONFIG.TOLERANCIA_PORCENTAJE);
 
-        // 4. Alineación y elevación del talón adelantado (Ángulo relativo antepié-tobillo)
-        let anguloTalonAdelantado = calcularAngulo(caderaAdelantada, tobilloAdelantado, pieAdelantado);
-        let talonAdelantadoOk = verificarRango(anguloTalonAdelantado, 145, 15);
+                    // 4. Alineación y elevación del talón adelantado
+                    let anguloTalonAdelantado = calcularAngulo(caderaAdelantada, tobilloAdelantado, pieAdelantado);
+                    let talonAdelantadoOk = verificarRango(anguloTalonAdelantado, 145, 15);
 
-        // 5. Cadera adelantada con respecto a la atrasada en el plano lateral
-        let caderaAlineadaOk = esIzq ? (caderaAdelantada.x < caderaAtrasada.x) : (caderaAdelantada.x > caderaAtrasada.x);
+                    // 5. Cadera adelantada en plano lateral
+                    let caderaAlineadaOk = esIzq ? (caderaAdelantada.x < caderaAtrasada.x) : (caderaAdelantada.x > caderaAtrasada.x);
 
-        return (rodillaAtrasadaOk && rodillaAdelantadaOk && distanciaPiesOk && talonAdelantadoOk && caderaAlineadaOk);
-    }
-}
+                    return (rodillaAtrasadaOk && rodillaAdelantadaOk && distanciaPiesOk && talonAdelantadoOk && caderaAlineadaOk);
+                }
+            }
         ];
 
         function calcularDistancia2D(p1, p2) {
@@ -745,7 +737,6 @@
             btnRestartApp: document.getElementById('btn-restart-app')
         };
 
-        // PERSISTENCIA DEL PANEL: Se agregan las claves para leer el último estado guardado
         window.addEventListener('DOMContentLoaded', () => {
             let nombreGuardado = localStorage.getItem('senshikan_last_student');
             if (nombreGuardado) {
@@ -759,7 +750,6 @@
 
         DOM.btnStart.addEventListener('click', iniciarFlujoEvaluacion);
         
-        // PERSISTENCIA EN EL REINICIO: Guarda de forma segura ambos inputs antes de recargar la ventana
         DOM.btnRestartApp.addEventListener('click', () => {
             let actualNombre = DOM.setupPanel.querySelector('#input-name').value.trim();
             if (actualNombre) {
@@ -877,7 +867,8 @@
                     DOM.txtPrincipal.innerText = estadoApp.tiempoPrincipalRestante.toFixed(2);
                     DOM.txtPrincipal.style.color = (estadoApp.tiempoPrincipalRestante <= 5) ? CONFIG.color_error : CONFIG.color_primary;
 
-                    DOM.txtRetencion.style.color = CONFIG.color_primary; 
+                    // AJUSTE FINO: Timer detenido (No hay postura) -> Color ROJO
+                    DOM.txtRetencion.style.color = CONFIG.color_error; 
 
                     if (estadoApp.tiempoPrincipalRestante <= 0) {
                         sonarBuzzer();
@@ -889,7 +880,8 @@
                     estadoApp.tiempoRetencionAcumulado += delta;
                     DOM.txtRetencion.innerText = `${estadoApp.tiempoRetencionAcumulado.toFixed(1)}s / 5s`;
 
-                    DOM.txtRetencion.style.color = CONFIG.color_error; 
+                    // AJUSTE FINO: Timer avanzando (Postura correcta) -> Color VERDE
+                    DOM.txtRetencion.style.color = "#33cc66"; 
 
                     if (estadoApp.tiempoRetencionAcumulado >= CONFIG.TIEMPO_RETENCION_REQUERIDO) {
                         estadoApp.score++;
@@ -914,7 +906,7 @@
 
             DOM.txtTarget.innerText = estadoApp.posicionActual.nombre;
             DOM.txtRetencion.innerText = "0.0s / 5s";
-            DOM.txtRetencion.style.color = CONFIG.color_primary;
+            DOM.txtRetencion.style.color = CONFIG.color_error; // Inicia detenido en rojo
             
             hablar(`${estadoApp.posicionActual.nombreAudio}`);
         }
