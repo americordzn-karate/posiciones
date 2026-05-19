@@ -645,7 +645,39 @@
                     let distEsperada = 85 * factorEscala;
                     return (distPies >= distEsperada * 0.65 && rDelantera <= 138);
                 }
-            }
+            },
+            {
+    id: "NekoAshiDachi",
+    nombre: "Nekoashi Dachi",
+    nombreAudio: "Nekoashi Dachi",
+    evaluar: (nodos, factorEscala) => {
+        let esIzq = (estadoApp.guardia === "izquierdo");
+        
+        // Identificamos cuál pierna es la de carga (atrasada) y cuál la de ataque (adelantada)
+        let caderaAtrasada = esIzq ? nodos.right_hip : nodos.left_hip;
+        let rodillaAtrasada = esIzq ? nodos.right_knee : nodos.left_knee;
+        let tobilloAtrasado = esIzq ? nodos.right_ankle : nodos.left_ankle;
+        
+        let caderaAdelantada = esIzq ? nodos.left_hip : nodos.right_hip;
+        let rodillaAdelantada = esIzq ? nodos.left_knee : nodos.right_knee;
+        let tobilloAdelantado = esIzq ? nodos.left_ankle : nodos.right_ankle;
+
+        // 1. Flexión de la rodilla de carga (Atrasada): Debe estar marcada entre 90 y 130 grados
+        let anguloRodillaAtrasada = calcularAngulo(caderaAtrasada, rodillaAtrasada, tobilloAtrasado);
+        let rodillaAtrasadaCorrecta = (anguloRodillaAtrasada >= 90 && anguloRodillaAtrasada <= 130);
+
+        // 2. Flexión de la rodilla adelantada: No debe estar estirada (menor a 150 grados)
+        let anguloRodillaAdelantada = calcularAngulo(caderaAdelantada, rodillaAdelantada, tobilloAdelantado);
+        let rodillaAdelantadaCorrecta = (anguloRodillaAdelantada < 150);
+
+        // 3. Distancia entre pies (Posición corta): Aproximadamente una distancia menor o igual al ancho de hombros/caderas
+        let distPies = calcularDistancia2D(nodos.left_ankle, nodos.right_ankle);
+        let distMaxEsperada = (CONFIG.SUJETO_PRUEBA.ANCHO_CADERAS * 1.2) * factorEscala;
+        let distanciaCorrecta = (distPies <= distMaxEsperada);
+
+        return (rodillaAtrasadaCorrecta && rodillaAdelantadaCorrecta && distanciaCorrecta);
+    }
+}
         ];
 
         function calcularDistancia2D(p1, p2) {
