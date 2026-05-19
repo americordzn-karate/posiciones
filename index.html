@@ -5,32 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Senshi-Kan Kinematic & Biometric Analyzer</title>
     
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core@3.11.0/dist/tfjs-core.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter@3.11.0/dist/tfjs-converter.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl@3.11.0/dist/tfjs-backend-webgl.min.js"></script>
-    
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/pose.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@1.0.2/dist/pose-detection.min.js"></script>
-
-    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
-
-    <script>
-        // Verificación y configuración segura del entorno de producción de TensorFlow
-        window.addEventListener('load', () => {
-            try {
-                if (typeof tf !== 'undefined' && tf.env) {
-                    tf.env().set('PROD', true);
-                    tf.env().set('DEBUG', false);
-                } else if (typeof tf !== 'undefined' && tf.ENV) {
-                    // Variante por si la versión interna mapea el objeto en mayúsculas
-                    tf.ENV.set('PROD', true);
-                    tf.ENV.set('DEBUG', false);
-                }
-            } catch (e) {
-                console.log("Aviso de inicialización de entorno omitido de forma segura.");
-            }
-        });
-    </script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
 
     <style>
         :root {
@@ -462,7 +437,7 @@
         </div>
 
         <div class="card" id="loading-overlay">
-            <span id="loading-text">Cargando Redes Neuronales y Modelos Biométricos...</span>
+            <span id="loading-text">Cargando Motores de Visión MediaPipe...</span>
         </div>
 
         <div class="card" id="biometric-panel" style="display: none;">
@@ -499,7 +474,7 @@
             <div class="results-header">
                 <h2>Evaluación Finalizada</h2>
                 <div class="student-name" id="res-student" style="font-size: 1.1rem; font-weight: bold; margin-top: 3px;">---</div>
-                <div id="res-id-biometric" style="font-size: 0.75rem; color: var(--color-biometric); margin-bottom: 5px;">HUELLA FACIAL REGISTRADA</div>
+                <div id="res-id-biometric" style="font-size: 0.75rem; color: var(--color-biometric); margin-bottom: 5px;">HUELLA FACIAL REGISTRADA (MEDIAPIPE VECTORES)</div>
                 <div id="res-mode" style="font-size: 0.85rem; color: var(--color-primary); font-weight: bold; text-transform: uppercase; margin-top: 2px;">MODO: ---</div>
                 <p id="res-date" style="font-size: 0.75rem; color: var(--color-text-muted); margin-top: 3px;"></p>
             </div>
@@ -561,14 +536,14 @@
             posturaConectada: false,
             intervaloMaestro: null,
             
-            faseBiometrica: false,
-            progresoBiometrico: 0,
-            huellaFacialRegistrada: null
+            faseBiometrica: true,
+            progresoBiometrico: 0
         };
 
         let AudioCtx = null;
-        let detector; 
+        let poseInstancia = null; 
         let ctx = document.getElementById('output-canvas').getContext('2d');
+        let camaraStream = null;
 
         function seleccionarModo(idBoton, valorTolerancia, nombreTexto) {
             CONFIG.TOLERANCIA_PORCENTAJE = valorTolerancia;
@@ -778,10 +753,6 @@
         DOM.btnStart.addEventListener('click', iniciarFlujoEvaluacion);
         
         DOM.btnRestartApp.addEventListener('click', () => {
-            let actualNombre = DOM.setupPanel.querySelector('#input-name').value.trim();
-            if (actualNombre) localStorage.setItem('senshikan_last_student', actualNombre);
-            let actualEstatura = DOM.setupPanel.querySelector('#input-height').value.trim();
-            if (actualEstatura) localStorage.setItem('senshikan_last_height', actualEstatura);
             window.location.reload();
         });
 
@@ -806,28 +777,29 @@
             DOM.loadingOverlay.style.display = 'block';
 
             try {
-                // Descarga limpia y asíncrona de los descriptores biométricos
-                const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
-                await faceapi.nets.ssdliteMobilenetv1.loadFromUri(MODEL_URL);
-                await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
-                await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
+                // Instanciar MediaPipe Pose de manera limpia
+                poseInstancia = new Pose({
+                    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+                });
 
-                // Enlace de respaldo transparente para la base remota de Senshi-Kan
-                try {
-                    await fetch("https://script.google.com/macros/s/AKfycbybcoO_h2T_0P6X-mX336X8i9616Xm7ImsiQun9R6V-U0OOf6rL6gY8T1bH2R8y6qg/exec", { 
-                        method: 'GET',
-                        mode: 'cors',
-                        redirect: 'follow'
-                    });
-                } catch(e) { console.log("Sincronización en contingencia local"); }
+                poseInstancia.setOptions({
+                    modelComplexity: 1,
+                    smoothLandmarks: true,
+                    enableSegmentation: false,
+                    smoothSegmentation: false,
+                    minDetectionConfidence: 0.5,
+                    minTrackingConfidence: 0.5
+                });
 
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: estadoApp.camaraSeleccionada, width: { ideal: 640 }, height: { ideal: 480 } },
+                poseInstancia.onResults(procesarResultadosMediaPipe);
+
+                camaraStream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: estadoApp.camaraSeleccionada, width: 640, height: 480 },
                     audio: false
                 });
                 
-                DOM.video.srcObject = stream;
-                DOM.video.onloadedmetadata = async () => {
+                DOM.video.srcObject = camaraStream;
+                DOM.video.onloadedmetadata = () => {
                     DOM.canvas.width = DOM.video.videoWidth;
                     DOM.canvas.height = DOM.video.videoHeight;
                     
@@ -835,88 +807,150 @@
                     DOM.videoContainer.style.display = 'block';
                     DOM.biometricPanel.style.display = 'flex';
                     
-                    estadoApp.faseBiometrica = true;
-                    hablar(`Iniciando sistema de identificación biométrica. Por favor, mira fijamente a la cámara, ${estadoApp.nombreAlumno}.`);
-                    detectarCicloBiometrico();
+                    hablar(`Iniciando escaneo biométrico. Colócate frente a la cámara, ${estadoApp.nombreAlumno}.`);
+                    
+                    // Ciclo continuo de lectura de frames de video
+                    ejecutarBucleVideo();
                 };
 
             } catch (err) {
-                alert("Error crítico de hardware o carga de modelos: " + err.message);
+                alert("Error de acceso a cámara o inicialización: " + err.message);
                 window.location.reload();
             }
         }
 
-        async function detectarCicloBiometrico() {
-            if (!estadoApp.faseBiometrica) return;
-
-            ctx.clearRect(0, 0, DOM.canvas.width, DOM.canvas.height);
-
-            const deteccion = await faceapi.detectSingleFace(DOM.video, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.4 }))
-                                           .withFaceLandmarks()
-                                           .withFaceDescriptor();
-
-            if (deteccion) {
-                const dimensionesRelativas = faceapi.resizeResults(deteccion, { width: DOM.canvas.width, height: DOM.canvas.height });
-                
-                ctx.lineWidth = 3;
-                ctx.strokeStyle = CONFIG.color_biometric;
-                ctx.strokeRect(dimensionesRelativas.detection.box.x, dimensionesRelativas.detection.box.y, dimensionesRelativas.detection.box.width, dimensionesRelativas.detection.box.height);
-
-                ctx.fillStyle = CONFIG.color_biometric;
-                dimensionesRelativas.landmarks.positions.forEach(pt => {
-                    ctx.beginPath();
-                    ctx.arc(pt.x, pt.y, 2, 0, 2 * Math.PI);
-                    ctx.fill();
-                });
-
-                estadoApp.progresoBiometrico += 1.5; 
-                if (estadoApp.progresoBiometrico > 100) estadoApp.progresoBiometrico = 100;
-
-                DOM.biometricStatus.innerText = `ESCANEANDO: ${Math.floor(estadoApp.progresoBiometrico)}%`;
-                DOM.biometricDetails.innerText = "Registrando mapa e hito de estructura facial vectorial...";
-                DOM.biometricDetails.style.color = CONFIG.color_biometric;
-                DOM.biometricProgressFill.style.width = `${estadoApp.progresoBiometrico}%`;
-
-                if (estadoApp.progresoBiometrico >= 100) {
-                    estadoApp.faseBiometrica = false;
-                    estadoApp.huellaFacialRegistrada = deteccion.descriptor; 
-                    
-                    sonarBeep();
-                    DOM.biometricStatus.innerText = "IDENTIDAD VERIFICADA - INTEGRIDAD OK";
-                    DOM.biometricStatus.style.color = "#33cc66";
-                    DOM.biometricDetails.innerText = `Alumno: ${estadoApp.nombreAlumno} registrado correctamente en Senshi-Kan Cloud.`;
-                    
-                    setTimeout(async () => {
-                        DOM.biometricPanel.style.display = 'none';
-                        DOM.loadingOverlay.style.display = 'block';
-                        DOM.loadingOverlay.querySelector('#loading-text').innerText = "Iniciando análisis cinemático de esqueleto...";
-                        await inicializarPoseDetection();
-                    }, 1500);
-                    return;
-                }
-            } else {
-                estadoApp.progresoBiometrico -= 1;
-                if (estadoApp.progresoBiometrico < 0) estadoApp.progresoBiometrico = 0;
-                
-                DOM.biometricStatus.innerText = "SISTEMA BIOMÉTRICO: BUSCANDO ROSTRO...";
-                DOM.biometricDetails.innerText = "Alinea tu cara al centro del recuadro de video";
-                DOM.biometricDetails.style.color = CONFIG.color_error;
-                DOM.biometricProgressFill.style.width = `${estadoApp.progresoBiometrico}%`;
+        async function ejecutarBucleVideo() {
+            if (camaraStream && DOM.video.readyState >= 2) {
+                await poseInstancia.send({ image: DOM.video });
             }
-
-            requestAnimationFrame(detectarCicloBiometrico);
+            requestAnimationFrame(ejecutarBucleVideo);
         }
 
-        async function inicializarPoseDetection() {
-            detector = await poseDetection.createDetector(poseDetection.SupportedModels.BlazePose, {
-                runtime: 'mediapipe',
-                solutionPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/pose',
-                modelType: 'full'
-            });
+        function procesarResultadosMediaPipe(results) {
+            ctx.clearRect(0, 0, DOM.canvas.width, DOM.canvas.height);
+            
+            if (!results.poseLandmarks) {
+                if (estadoApp.faseBiometrica) {
+                    DOM.biometricStatus.innerText = "SISTEMA BIOMÉTRICO: BUSCANDO ALUMNO...";
+                    DOM.biometricDetails.innerText = "Ubícate dentro del marco de la cámara.";
+                    DOM.biometricDetails.style.color = CONFIG.color_error;
+                }
+                return;
+            }
 
-            DOM.loadingOverlay.style.display = 'none';
-            DOM.prepCountdownContainer.style.display = 'block';
-            hablar(`Realiza las posiciones que te voy a pedir a continuación en modo ${estadoApp.modoTextoActual}`, ejecutarConteoInicial);
+            const kp = results.poseLandmarks;
+
+            // FASE BIOMÉTRICA CON MEDIAPIPE (Puntos faciales integrados 0 al 6)
+            if (estadoApp.faseBiometrica) {
+                let nariz = kp[0];
+                let ojoIzq = kp[2];
+                let ojoDer = kp[5];
+
+                // Verificar visibilidad confiable del rostro
+                if (nariz.visibility > 0.6 && ojoIzq.visibility > 0.6 && ojoDer.visibility > 0.6) {
+                    
+                    // Dibujar hito biométrico alrededor de los ojos y nariz
+                    ctx.lineWidth = 3;
+                    ctx.strokeStyle = CONFIG.color_biometric;
+                    
+                    let radioRostro = Math.abs(ojoIzq.x - ojoDer.x) * DOM.canvas.width * 2;
+                    ctx.beginPath();
+                    ctx.arc(nariz.x * DOM.canvas.width, nariz.y * DOM.canvas.height, radioRostro > 20 ? radioRostro : 40, 0, 2 * Math.PI);
+                    ctx.stroke();
+
+                    // Dibujar puntos clave faciales
+                    for(let i=0; i<=6; i++) {
+                        let fX = kp[i].x * DOM.canvas.width;
+                        let fY = kp[i].y * DOM.canvas.height;
+                        ctx.beginPath();
+                        ctx.arc(fX, fY, 3, 0, 2 * Math.PI);
+                        ctx.fillStyle = CONFIG.color_biometric;
+                        ctx.fill();
+                    }
+
+                    estadoApp.progresoBiometrico += 1.0;
+                    if (estadoApp.progresoBiometrico > 100) estadoApp.progresoBiometrico = 100;
+
+                    DOM.biometricStatus.innerText = `REGISTRANDO ROSTRO: ${Math.floor(estadoApp.progresoBiometrico)}%`;
+                    DOM.biometricDetails.innerText = "Estructura craneal vectorial detectada correctamente.";
+                    DOM.biometricDetails.style.color = CONFIG.color_biometric;
+                    DOM.biometricProgressFill.style.width = `${estadoApp.progresoBiometrico}%`;
+
+                    if (estadoApp.progresoBiometrico >= 100) {
+                        estadoApp.faseBiometrica = false;
+                        sonarBeep();
+                        DOM.biometricStatus.innerText = "IDENTIDAD ASOCIADA - INTEGRIDAD OK";
+                        DOM.biometricStatus.style.color = "#33cc66";
+                        DOM.biometricDetails.innerText = `Huella digitalizada para ${estadoApp.nombreAlumno}.`;
+                        
+                        setTimeout(() => {
+                            DOM.biometricPanel.style.display = 'none';
+                            DOM.prepCountdownContainer.style.display = 'block';
+                            hablar(`Identificación lista. Camina hacia atrás para enfocar tu cuerpo en modo ${estadoApp.modoTextoActual}`, ejecutarConteoInicial);
+                        }, 1500);
+                    }
+                } else {
+                    estadoApp.progresoBiometrico -= 0.5;
+                    if (estadoApp.progresoBiometrico < 0) estadoApp.progresoBiometrico = 0;
+                    DOM.biometricStatus.innerText = "SISTEMA BIOMÉTRICO: MIRA A LA CÁMARA...";
+                    DOM.biometricProgressFill.style.width = `${estadoApp.progresoBiometrico}%`;
+                }
+                return; // Cortar aquí durante la biometría
+            }
+
+            // FASE DE EVALUACIÓN CINEMÁTICA DE POSTURAS
+            if (estadoApp.pruebaActiva) {
+                // Mapear nodos de MediaPipe Pose
+                const nodos = {
+                    left_hip: { x: kp[23].x * DOM.canvas.width, y: kp[23].y * DOM.canvas.height },
+                    right_hip: { x: kp[24].x * DOM.canvas.width, y: kp[24].y * DOM.canvas.height },
+                    left_knee: { x: kp[25].x * DOM.canvas.width, y: kp[25].y * DOM.canvas.height },
+                    right_knee: { x: kp[26].x * DOM.canvas.width, y: kp[26].y * DOM.canvas.height },
+                    left_ankle: { x: kp[27].x * DOM.canvas.width, y: kp[27].y * DOM.canvas.height },
+                    right_ankle: { x: kp[28].x * DOM.canvas.width, y: kp[28].y * DOM.canvas.height },
+                    left_foot: { x: kp[31].x * DOM.canvas.width, y: kp[31].y * DOM.canvas.height },
+                    right_foot: { x: kp[32].x * DOM.canvas.width, y: kp[32].y * DOM.canvas.height }
+                };
+
+                // Validar visibilidad mínima de las extremidades inferiores (confianza > 0.4)
+                let piernasVisibles = kp[23].visibility > 0.4 && kp[24].visibility > 0.4 && 
+                                       kp[27].visibility > 0.4 && kp[28].visibility > 0.4;
+
+                if (piernasVisibles) {
+                    ctx.lineWidth = 4;
+
+                    // Dibujar líneas del esqueleto
+                    dibujarLinea(ctx, nodos.left_hip, nodos.left_knee, CONFIG.color_left_node);
+                    dibujarLinea(ctx, nodos.left_knee, nodos.left_ankle, CONFIG.color_left_node);
+                    dibujarLinea(ctx, nodos.left_ankle, nodos.left_foot, CONFIG.color_left_node);
+
+                    dibujarLinea(ctx, nodos.right_hip, nodos.right_knee, CONFIG.color_right_node);
+                    dibujarLinea(ctx, nodos.right_knee, nodos.right_ankle, CONFIG.color_right_node);
+                    dibujarLinea(ctx, nodos.right_ankle, nodos.right_foot, CONFIG.color_right_node);
+
+                    // Dibujar articulaciones
+                    Object.keys(nodos).forEach(key => {
+                        let colorNodo = key.startsWith('left') ? CONFIG.color_left_node : CONFIG.color_right_node;
+                        dibujarPunto(ctx, nodos[key].x, nodos[key].y, colorNodo);
+                    });
+
+                    // Cálculo biomecánico de escala adaptativa
+                    let pxEstatura = calcularDistancia2D(nodos.left_hip, nodos.left_ankle);
+                    let factorEscala = pxEstatura / CONFIG.SUJETO_PRUEBA.TALON_A_CADERA;
+
+                    // Evaluar criterios geométricos de la postura actual
+                    let cumplePostura = estadoApp.posicionActual.evaluar(nodos, factorEscala);
+
+                    if (cumplePostura && !estadoApp.posturaConectada) {
+                        estadoApp.posturaConectada = true;
+                        sonarBeep();
+                    } else if (!cumplePostura && estadoApp.posturaConectada) {
+                        estadoApp.posturaConectada = false;
+                        estadoApp.tiempoRetencionAcumulado = 0;
+                        sonarBuzzer();
+                    }
+                }
+            }
         }
 
         function ejecutarConteoInicial() {
@@ -942,7 +976,6 @@
 
             siguientePosicion();
             encenderMotoresTimers();
-            detectarFrame();
         }
 
         function encenderMotoresTimers() {
@@ -1009,7 +1042,10 @@
         function finalizarPruebaGlobal() {
             estadoApp.pruebaActiva = false;
             clearInterval(estadoApp.intervaloMaestro);
-            if (DOM.video.srcObject) DOM.video.srcObject.getTracks().forEach(t => t.stop());
+            
+            if (camaraStream) {
+                camaraStream.getTracks().forEach(track => track.stop());
+            }
 
             let calificacionFinal = Math.min(100, Math.round((estadoApp.score * 100) / CONFIG.BASE_MAX_POSICIONES));
 
@@ -1027,77 +1063,8 @@
             });
             DOM.modalResults.style.display = 'flex';
 
-            let locucionFinal = `Prueba finalizada en modo ${estadoApp.modoTextoActual}. Aquí tienes tu resultado, ${estadoApp.nombreAlumno}. Obtuviste una calificación de ${calificacionFinal}.`;
+            let locucionFinal = `Prueba finalizada. Excelente esfuerzo en modo ${estadoApp.modoTextoActual}, ${estadoApp.nombreAlumno}.`;
             hablar(locucionFinal);
-        }
-
-        async function detectarFrame() {
-            if (!estadoApp.pruebaActiva) return;
-
-            const poses = await detector.estimatePoses(DOM.video, { flipHorizontal: false });
-            ctx.clearRect(0, 0, DOM.canvas.width, DOM.canvas.height);
-
-            if (poses.length > 0) {
-                const kp = poses[0].keypoints;
-                
-                const nodos = {
-                    left_hip: kp.find(k => k.name === 'left_hip'),
-                    right_hip: kp.find(k => k.name === 'right_hip'),
-                    left_knee: kp.find(k => k.name === 'left_knee'),
-                    right_knee: kp.find(k => k.name === 'right_knee'),
-                    left_ankle: kp.find(k => k.name === 'left_ankle'),
-                    right_ankle: kp.find(k => k.name === 'right_ankle'),
-                    left_foot: kp.find(k => k.name === 'left_foot_index'),
-                    right_foot: kp.find(k => k.name === 'right_foot_index')
-                };
-
-                let todosVisibles = Object.values(nodos).every(n => n && n.score > 0.35);
-
-                if (todosVisibles) {
-                    const videoWidth = DOM.video.videoWidth;
-                    const videoHeight = DOM.video.videoHeight;
-                    const canvasWidth = DOM.canvas.width;
-                    const canvasHeight = DOM.canvas.height;
-
-                    const dibujoNodos = {};
-                    Object.keys(nodos).forEach(key => {
-                        dibujoNodos[key] = {
-                            x: (nodos[key].x / videoWidth) * canvasWidth,
-                            y: (nodos[key].y / videoHeight) * canvasHeight
-                        };
-                    });
-
-                    ctx.lineWidth = 4;
-
-                    dibujarLinea(ctx, dibujoNodos.left_hip, dibujoNodos.left_knee, CONFIG.color_left_node);
-                    dibujarLinea(ctx, dibujoNodos.left_knee, dibujoNodos.left_ankle, CONFIG.color_left_node);
-                    dibujarLinea(ctx, dibujoNodos.left_ankle, dibujoNodos.left_foot, CONFIG.color_left_node);
-
-                    dibujarLinea(ctx, dibujoNodos.right_hip, dibujoNodos.right_knee, CONFIG.color_right_node);
-                    dibujarLinea(ctx, dibujoNodos.right_knee, dibujoNodos.right_ankle, CONFIG.color_right_node);
-                    dibujarLinea(ctx, dibujoNodos.right_ankle, dibujoNodos.right_foot, CONFIG.color_right_node);
-
-                    Object.keys(dibujoNodos).forEach(key => {
-                        let colorNodo = key.startsWith('left') ? CONFIG.color_left_node : CONFIG.color_right_node;
-                        dibujarPunto(ctx, dibujoNodos[key].x, dibujoNodos[key].y, colorNodo);
-                    });
-
-                    let pxEstatura = calcularDistancia2D(nodos.left_hip, nodos.left_ankle);
-                    let factorEscala = pxEstatura / CONFIG.SUJETO_PRUEBA.TALON_A_CADERA;
-
-                    let cumplePostura = estadoApp.posicionActual.evaluar(nodos, factorEscala);
-
-                    if (cumplePostura && !estadoApp.posturaConectada) {
-                        estadoApp.posturaConectada = true;
-                        sonarBeep();
-                    } else if (!cumplePostura && estadoApp.posturaConectada) {
-                        estadoApp.posturaConectada = false;
-                        estadoApp.tiempoRetencionAcumulado = 0;
-                        sonarBuzzer();
-                    }
-                }
-            }
-            requestAnimationFrame(detectarFrame);
         }
 
         function dibujarLinea(cCtx, p1, p2, color) {
@@ -1111,7 +1078,7 @@
 
         function dibujarPunto(cCtx, sX, sY, color) {
             cCtx.beginPath();
-            cCtx.arc(sX, sY, 7, 0, 2 * Math.PI);
+            cCtx.arc(sX, sY, 6, 0, 2 * Math.PI);
             cCtx.fillStyle = color;
             cCtx.fill();
             cCtx.lineWidth = 1.5;
