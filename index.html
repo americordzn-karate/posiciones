@@ -53,7 +53,6 @@
             .container { grid-template-columns: 1fr; }
         }
 
-        /* Sección Izquierda: Interfaz de la Cámara */
         .camera-section {
             display: flex;
             flex-direction: column;
@@ -76,7 +75,7 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
-            transform: scaleX(-1); /* Efecto espejo natural */
+            transform: scaleX(-1);
         }
 
         #output-canvas {
@@ -90,7 +89,6 @@
             pointer-events: none;
         }
 
-        /* Sección Derecha: Datos e Identidad del Alumno */
         .data-section {
             display: flex;
             flex-direction: column;
@@ -187,7 +185,7 @@
         <div>
             <header>
                 <h1>Senshi-Kan Karate Academy</h1>
-                <p>Escaner Biométrico de Acceso Automatizado</p>
+                <p>Escáner Biométrico de Acceso Automatizado</p>
             </header>
 
             <div class="status-box" id="status-sistema">
@@ -216,28 +214,44 @@
 <footer>Senshi-Kan · Gestión Deportiva Inteligente</footer>
 
 <script>
-    // URL del script de tu puente de lectura integrada directamente
     const URL_DEL_PUENTE = "https://script.google.com/macros/s/AKfycbxXtiKxXBjJ_TL2jT7HrlWfhe8nOWD7Lkt-z3uW1zpDOMSeMkAfYYhzitvO63DYe4BsjQ/exec";
     
-    const UMBRAL_IDENTIFICACION = 0.08; // Sensibilidad estricta del emparejamiento facial
+    // Aumentamos ligeramente el umbral a 0.15 para dar más tolerancia inicial mientras pruebas
+    const UMBRAL_IDENTIFICACION = 0.15; 
     let listaAlumnosSenshiKan = [];
     let videoElement = document.getElementById('webcam');
     let canvasElement = document.getElementById('output-canvas');
     let canvasCtx = canvasElement.getContext('2d');
     let poseDetector = null;
-    let streamDeCamara = null;
 
-    // 1. Descargar la Base de Datos desde Google Sheets al abrir la app
+    // 1. Descargar la Base de Datos desde tu URL de Apps Script
     async function inicializarSistema() {
         try {
             const respuesta = await fetch(URL_DEL_PUENTE);
             if (!respuesta.ok) throw new Error("Falla de respuesta en red");
             
-            listaAlumnosSenshiKan = await respuesta.json();
+            const datosSucios = await respuesta.json();
+            
+            // BLINDAJE DE DATOS: Asegurar que las huellas y accesos sean tipos de datos correctos
+            listaAlumnosSenshiKan = datosSucios.map(alumno => {
+                let huellaProcesada = null;
+                if (alumno.huella) {
+                    // Si viene como texto plano string, lo parseamos a arreglo numérico real
+                    huellaProcesada = typeof alumno.huella === 'string' ? JSON.parse(alumno.huella) : alumno.huella;
+                }
+                return {
+                    nombre: alumno.nombre,
+                    estatura: alumno.estatura,
+                    peso: alumno.peso,
+                    huella: huellaProcesada,
+                    // Convertir cualquier variante de "TRUE", true o texto a booleano real
+                    acceso: String(alumno.acceso).toUpperCase() === "TRUE" || alumno.acceso === true
+                };
+            });
+            
+            console.log("Alumnos normalizados en memoria:", listaAlumnosSenshiKan);
             
             document.getElementById("status-sistema").innerText = "Base de datos cargada. Inicializando cámara...";
-            document.getElementById("status-sistema").style.color = "#e6b800";
-            
             configurarMediaPipe();
         } catch (error) {
             console.error("Error al cruzar el puente: ", error);
@@ -260,7 +274,6 @@
         });
 
         poseDetector.onResults(onResultsLandmarks);
-
         encenderCamara();
     }
 
@@ -271,12 +284,9 @@
             audio: false 
         })
         .then(function(stream) {
-            streamDeCamara = stream;
             videoElement.srcObject = stream;
             videoElement.addEventListener('loadedmetadata', loopProcesamiento);
-            
             document.getElementById("status-sistema").innerText = "SISTEMA ACTIVO: Pónte frente a la cámara";
-            document.getElementById("status-sistema").style.color = "#e6b800";
         })
         .catch(function(err) {
             console.error("Error de cámara: ", err);
@@ -285,7 +295,6 @@
         });
     }
 
-    // Loop síncrono continuo de frames
     async function loopProcesamiento() {
         if (!videoElement.paused && !videoElement.ended) {
             await poseDetector.send({ image: videoElement });
@@ -293,7 +302,7 @@
         requestAnimationFrame(loopProcesamiento);
     }
 
-    // 4. Algoritmo de Identificación Biométrica 1:N
+    // 4. Algoritmo de Identificación Biométrica 1:N (Corregido y blindado)
     function buscarAlumnoPorRostro(huellaEnVivo) {
         let mejorMatch = null;
         let menorVariacion = 999;
@@ -302,10 +311,18 @@
             let alumno = listaAlumnosSenshiKan[i];
             if (!alumno.huella || alumno.huella.length !== 3) continue;
 
-            // Resta absoluta de proporciones escalares
-            let d1 = Math.abs(huellaEnVivo[0] - alumno.huella[0]);
-            let d2 = Math.abs(huellaEnVivo[1] - alumno.huella[1]);
-            let d3 = Math.abs(huellaEnVivo[2] - alumno.huella[2]);
+            // Asegurar conversión estricta a punto flotante (números) antes de la resta
+            let hVivo0 = parseFloat(huellaEnVivo[0]);
+            let hVivo1 = parseFloat(huellaEnVivo[1]);
+            let hVivo2 = parseFloat(huellaEnVivo[2]);
+
+            let hBase0 = parseFloat(alumno.huella[0]);
+            let hBase1 = parseFloat(alumno.huella[1]);
+            let hBase2 = parseFloat(alumno.huella[2]);
+
+            let d1 = Math.abs(hVivo0 - hBase0);
+            let d2 = Math.abs(hVivo1 - hBase1);
+            let d3 = Math.abs(hVivo2 - hBase2);
             let variacionMedia = (d1 + d2 + d3) / 3;
 
             if (variacionMedia < menorVariacion) {
@@ -314,7 +331,9 @@
             }
         }
 
+        // Si el más cercano entra en nuestro rango de tolerancia, lo retornamos
         if (menorVariacion <= UMBRAL_IDENTIFICACION) {
+            console.log(`Match Encontrado: ${mejorMatch.nombre} con variación de ${menorVariacion.toFixed(4)}`);
             return mejorMatch;
         }
         return null;
@@ -322,10 +341,8 @@
 
     // 5. Callback de procesamiento de MediaPipe
     function onResultsLandmarks(results) {
-        // Redimensionar canvas dinámicamente según el video de entrada
         canvasElement.width = videoElement.videoWidth;
         canvasElement.height = videoElement.videoHeight;
-        
         canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
 
         if (!results.poseLandmarks) {
@@ -340,15 +357,13 @@
         let orejaIzq = kp[7];
         let orejaDer = kp[8];
 
-        // Validar que los rasgos principales del rostro estén bien encuadrados
         if (nariz.visibility > 0.5 && ojoIzq.visibility > 0.5 && ojoDer.visibility > 0.5) {
             
-            // Pintar círculos de referencia biométrica sobre el canvas
+            // Pintar círculos guía
             dibujarPuntoDeControl(nariz, "#e6b800");
             dibujarPuntoDeControl(ojoIzq, "#ffffff");
             dibujarPuntoDeControl(ojoDer, "#ffffff");
 
-            // Escala geométrica base (Distancia entre ojos)
             let E = Math.sqrt(Math.pow(ojoDer.x - ojoIzq.x, 2) + Math.pow(ojoDer.y - ojoIzq.y, 2));
             
             if (E > 0) {
@@ -358,22 +373,19 @@
                 
                 let huellaEnVivo = [p1, p2, p3];
 
-                // Buscar coincidencia en la base de datos descargada
                 let alumnoMatch = buscarAlumnoPorRostro(huellaEnVivo);
 
                 if (alumnoMatch) {
-                    // Evaluar la propiedad booleana de acceso (TRUE)
                     if (alumnoMatch.acceso === true) {
                         document.getElementById("txt-nombre").innerText = alumnoMatch.nombre;
                         document.getElementById("txt-estatura").innerText = alumnoMatch.estatura;
                         document.getElementById("txt-peso").innerText = alumnoMatch.peso;
                         
                         document.getElementById("status-sistema").innerText = "ACCESO PERMITIDO - IDENTIDAD CONFIRMADA";
-                        document.getElementById("status-sistema").style.color = "#33cc66"; // Verde éxito
+                        document.getElementById("status-sistema").style.color = "#33cc66"; 
                     } else {
-                        // El alumno existe pero tiene estatus FALSE
                         document.getElementById("status-sistema").innerText = "ACCESO DENEGADO: Cuenta Inactiva";
-                        document.getElementById("status-sistema").style.color = "#ff3333"; // Rojo alerta
+                        document.getElementById("status-sistema").style.color = "#ff3333"; 
                         limpiarFichaInterfaz();
                     }
                 } else {
@@ -406,7 +418,6 @@
         document.getElementById("txt-peso").innerText = "---";
     }
 
-    // Detonar la consulta masiva inmediatamente al cargar el DOM de la aplicación
     window.addEventListener("DOMContentLoaded", inicializarSistema);
 </script>
 
