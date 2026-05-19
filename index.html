@@ -2,1090 +2,413 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Senshi-Kan Kinematic & Biometric Analyzer</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Acceso Biométrico - Senshi-Kan</title>
     
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
 
     <style>
         :root {
-            --color-bg: #0b0b0b;
-            --color-surface: #161616;
-            --color-text: #ffffff;
-            --color-text-muted: #aaaaaa;
-            --color-primary: #e6b800; /* Oro Senshi-Kan */
-            --color-error: #ff3333;
-            --color-success: #33cc66;
-            --color-biometric: #00ffcc; /* Verde Neón para Biometría */
-            
-            --color-left-node: #e6b800;
-            --color-right-node: #33ccff;
+            --bg-color: #0b0b0b;
+            --surface-color: #161616;
+            --primary-color: #e6b800; /* Amarillo Mostaza de Senshi-Kan */
+            --text-color: #ffffff;
+            --text-muted: #aaaaaa;
+            --success-color: #33cc66;
+            --error-color: #ff3333;
         }
 
-        * {
+        *, *::before, *::after {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
         body {
-            background-color: var(--color-bg);
-            color: var(--color-text);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
             display: flex;
             flex-direction: column;
-            height: 100vh;
-            overflow: hidden;
-        }
-
-        header {
-            background-color: var(--color-surface);
-            width: 100%;
-            text-align: center;
-            padding: 8px;
-            border-bottom: 2px solid var(--color-primary);
-            flex-shrink: 0;
-        }
-
-        header h1 {
-            font-size: 1.1rem;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            color: var(--color-primary);
-        }
-
-        header p {
-            font-size: 0.7rem;
-            color: var(--color-text-muted);
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
         }
 
         .container {
             width: 100%;
-            max-width: 480px;
-            margin: 0 auto;
-            padding: 10px;
-            display: flex;
-            flex-direction: column;
-            flex: 1;
-            gap: 10px;
-            min-height: 0;
-        }
-
-        .card {
-            background-color: var(--color-surface);
-            border-radius: 8px;
-            padding: 12px;
-            border: 1px solid #222;
-        }
-
-        .form-group {
-            margin-bottom: 10px;
-        }
-
-        .form-group label {
-            display: block;
-            font-size: 0.75rem;
-            color: var(--color-primary);
-            margin-bottom: 3px;
-            font-weight: bold;
-            text-transform: uppercase;
-        }
-
-        .form-group input, .form-group select {
-            width: 100%;
-            padding: 8px;
-            background-color: #222;
-            border: 1px solid #444;
-            color: #fff;
-            border-radius: 4px;
-            font-size: 0.95rem;
-        }
-
-        .row {
-            display: flex;
-            gap: 10px;
-        }
-
-        .row .form-group {
-            flex: 1;
-        }
-
-        .mode-selector {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 6px;
-            margin-bottom: 12px;
-        }
-
-        .btn-mode {
-            background-color: #222;
-            color: var(--color-text-muted);
-            border: 1px solid #444;
-            padding: 8px 4px;
-            font-size: 0.75rem;
-            font-weight: bold;
-            text-transform: uppercase;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .btn-mode.active {
-            background-color: var(--color-primary);
-            color: #000;
-            border-color: var(--color-primary);
-            box-shadow: 0 0 8px rgba(230, 184, 0, 0.3);
-        }
-
-        .btn {
-            background-color: var(--color-primary);
-            color: #000;
-            border: none;
-            padding: 12px;
-            width: 100%;
-            font-weight: bold;
-            font-size: 0.95rem;
-            border-radius: 4px;
-            cursor: pointer;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .dashboard {
+            max-width: 1000px;
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 5px;
-            text-align: center;
+            gap: 25px;
+            background-color: var(--surface-color);
+            padding: 30px;
+            border-radius: 12px;
+            border: 1px solid #222;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        @media (max-width: 768px) {
+            .container { grid-template-columns: 1fr; }
+        }
+
+        /* Sección Izquierda: Interfaz de la Cámara */
+        .camera-section {
+            display: flex;
+            flex-direction: column;
             align-items: center;
-        }
-
-        .timer-master {
-            grid-column: 1 / -1;
-            font-size: 0.85rem;
-            color: var(--color-text-muted);
-        }
-
-        .target-pose {
-            grid-column: 1 / -1;
-            font-size: 1.1rem;
-            font-weight: bold;
-            color: var(--color-primary);
-            text-transform: uppercase;
-            border: 1px dashed var(--color-primary);
-            padding: 6px;
-            border-radius: 4px;
-            background: rgba(230, 184, 0, 0.05);
-        }
-
-        .timer-principal {
-            font-size: 2.2rem;
-            font-family: monospace;
-            font-weight: bold;
-            color: var(--color-primary);
-        }
-
-        .timer-retencion {
-            background-color: #222;
-            padding: 4px;
-            border-radius: 4px;
-            font-size: 0.8rem;
-            border: 1px solid #333;
-            display: flex;
-            flex-direction: column;
             justify-content: center;
+            position: relative;
         }
 
-        .timer-retencion span {
-            color: var(--color-primary);
-            font-weight: bold;
-            font-size: 0.95rem;
-            transition: color 0.2s ease;
-        }
-
-        .score-live {
-            grid-column: 1 / -1;
-            font-size: 0.85rem;
-        }
-
-        #biometric-panel {
-            background: rgba(0, 255, 204, 0.04);
-            border: 1px solid var(--color-biometric);
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            text-align: center;
-        }
-
-        #biometric-status {
-            font-weight: bold;
-            color: var(--color-biometric);
-            font-size: 0.9rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        #biometric-progress-bar {
-            width: 100%;
-            height: 6px;
-            background-color: #222;
-            border-radius: 3px;
-            overflow: hidden;
-            margin-top: 4px;
-        }
-
-        #biometric-progress-fill {
-            width: 0%;
-            height: 100%;
-            background-color: var(--color-biometric);
-            transition: width 0.1s linear;
-        }
-
-        .video-box {
+        .video-wrapper {
             position: relative;
             width: 100%;
-            flex: 1;
+            aspect-ratio: 4/3;
             background-color: #000;
             border-radius: 8px;
             overflow: hidden;
-            border: 2px solid var(--color-surface);
-            min-height: 0;
+            border: 2px solid #333;
         }
 
-        .video-box.mirror video, 
-        .video-box.mirror canvas {
+        #webcam {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1); /* Efecto espejo natural */
+        }
+
+        #output-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
             transform: scaleX(-1);
-        }
-
-        .video-box video, .video-box canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-        }
-
-        .video-box canvas {
-            z-index: 2;
             pointer-events: none;
         }
 
-        #loading-overlay {
-            display: none;
-            text-align: center;
-            padding: 15px;
-            color: var(--color-primary);
-            font-weight: bold;
-            font-size: 1.2rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
+        /* Sección Derecha: Datos e Identidad del Alumno */
+        .data-section {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 10px 0;
         }
 
-        .countdown-number {
-            font-size: 4rem;
-            display: block;
-            margin-top: 10px;
-            color: #ffffff;
-            font-family: monospace;
-        }
-
-        #prep-countdown-container {
-            display: none;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 5;
-            background: rgba(0, 0, 0, 0.8);
-            padding: 20px 40px;
-            border-radius: 12px;
-            text-align: center;
-            border: 2px solid var(--color-primary);
-            pointer-events: none;
-        }
-
-        #prep-countdown-container p {
-            font-size: 1rem;
-            color: var(--color-primary);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .modal-results {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.95);
-            z-index: 10;
-            justify-content: center;
-            align-items: flex-start;
-            padding: 20px 15px;
-            overflow-y: auto;
-        }
-
-        .results-card {
-            background-color: var(--color-surface);
-            border: 2px solid var(--color-primary);
-            border-radius: 8px;
-            width: 100%;
-            max-width: 420px;
-            padding: 20px;
-            margin: auto 0;
-        }
-
-        .results-header {
-            text-align: center;
-            border-bottom: 1px solid #333;
+        header {
+            border-bottom: 3px solid var(--primary-color);
             padding-bottom: 10px;
-            margin-bottom: 10px;
+            margin-bottom: 20px;
         }
 
-        .results-header h2 {
-            color: var(--color-primary);
+        header h1 {
+            color: var(--primary-color);
+            font-size: 1.6rem;
             text-transform: uppercase;
-            font-size: 1.3rem;
+            letter-spacing: 1px;
         }
 
-        .score-final {
-            text-align: center;
-            font-size: 2.5rem;
-            font-weight: bold;
-            color: var(--color-primary);
-            margin: 5px 0;
-        }
-
-        .table-wrapper {
-            margin-top: 12px;
-            width: 100%;
-        }
-
-        .table-results {
-            width: 100%;
-            border-collapse: collapse;
+        header p {
+            color: var(--text-muted);
             font-size: 0.85rem;
         }
 
-        .table-results th, .table-results td {
-            border: 1px solid #333;
-            padding: 8px;
-        }
-
-        .table-results th {
-            background-color: #222;
-            color: var(--color-primary);
-        }
-
-        .status-ok { color: #33cc66; font-weight: bold; }
-        .status-fail { color: var(--color-error); font-weight: bold; }
-
-        .slogan {
+        .status-box {
+            background-color: #0d0d0d;
+            border: 1px solid #222;
+            padding: 15px;
+            border-radius: 6px;
             text-align: center;
-            font-style: italic;
+            font-weight: bold;
+            font-size: 1rem;
+            letter-spacing: 0.5px;
+            margin-bottom: 25px;
+            color: var(--primary-color);
+        }
+
+        .student-card {
+            background-color: #0d0d0d;
+            border: 1px solid #222;
+            padding: 20px;
+            border-radius: 8px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .data-field {
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px solid #222;
+            padding-bottom: 8px;
+            font-size: 1.1rem;
+        }
+
+        .data-field .label {
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .data-field .value {
+            color: var(--text-color);
+            font-weight: bold;
+        }
+
+        .data-field .value.highlight {
+            color: var(--primary-color);
+        }
+
+        footer {
             margin-top: 20px;
-            color: var(--color-text-muted);
+            text-align: center;
             font-size: 0.75rem;
+            color: #444;
+            text-transform: uppercase;
         }
     </style>
 </head>
 <body>
 
-    <header>
-        <h1>Senshi-Kan Kinematic & Biometric Analyzer</h1>
-        <p>Evaluación Automatizada y Registro de Rostro · "Vence Tus Límites"</p>
-    </header>
-
-    <div class="container">
-        <div class="card" id="setup-panel">
-            <div class="form-group">
-                <label>Modo de Competencia</label>
-                <div class="mode-selector">
-                    <button type="button" class="btn-mode active" id="mode-principiante" onclick="seleccionarModo('principiante', 0.50, 'Principiante')">Principiante</button>
-                    <button type="button" class="btn-mode" id="mode-intermedio" onclick="seleccionarModo('intermedio', 0.35, 'Intermedio')">Intermedio</button>
-                    <button type="button" class="btn-mode" id="mode-avanzado" onclick="seleccionarModo('avanzado', 0.25, 'Avanzado')">Avanzado</button>
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label for="input-name">Nombre del Alumno</label>
-                <input type="text" id="input-name" placeholder="Escribe tu nombre aquí..." required>
-            </div>
-            
-            <div class="row">
-                <div class="form-group">
-                    <label for="input-height">Estatura (cm)</label>
-                    <input type="number" id="input-height" placeholder="p. ej. 174" required>
-                </div>
-                <div class="form-group">
-                    <label for="select-guard">Guardia Inicial</label>
-                    <select id="select-guard">
-                        <option value="izquierdo" selected>Izquierda al Frente</option>
-                        <option value="derecho">Derecha al Frente</option>
-                    </select>
-                </div>
-            </div>
-            <div class="form-group">
-                <label for="select-camera">Cámara</label>
-                <select id="select-camera">
-                    <option value="user" selected>Frontal (Selfie - Modo Espejo)</option>
-                    <option value="environment">Trasera (Instructor - Modo Real)</option>
-                </select>
-            </div>
-            <button class="btn" id="btn-start">Iniciar Identificación</button>
-        </div>
-
-        <div class="card" id="loading-overlay">
-            <span id="loading-text">Cargando Motores de Visión MediaPipe...</span>
-        </div>
-
-        <div class="card" id="biometric-panel" style="display: none;">
-            <div id="biometric-status">SISTEMA BIOMÉTRICO: BUSCANDO ROSTRO...</div>
-            <div id="biometric-details" style="font-size: 0.75rem; color: var(--color-text-muted);">Alinea tu cara al centro del recuadro de video</div>
-            <div id="biometric-progress-bar">
-                <div id="biometric-progress-fill"></div>
-            </div>
-        </div>
-
-        <div class="card" id="test-panel" style="display: none;">
-            <div class="dashboard">
-                <div class="timer-master">Tiempo Maestro: <span id="txt-master" style="color:#fff; font-weight:bold;">02:00</span></div>
-                <div class="target-pose" id="txt-target">PREPARANDO...</div>
-                <div class="timer-principal" id="txt-principal">20.00</div>
-                <div class="timer-retencion">Estabilidad <span id="txt-retencion">0.0s / 5s</span></div>
-                <div class="score-live">Posiciones logradas: <strong id="txt-score" style="color: var(--color-primary);">0</strong></div>
-            </div>
-        </div>
-
-        <div class="video-box" id="video-container" style="display: none;">
+<div class="container">
+    
+    <div class="camera-section">
+        <div class="video-wrapper">
             <video id="webcam" autoplay playsinline muted></video>
             <canvas id="output-canvas"></canvas>
-            
-            <div id="prep-countdown-container">
-                <p>BIOMETRÍA OK. Prepárate en tu lugar</p>
-                <span id="prep-countdown-display" class="countdown-number">5</span>
-            </div>
         </div>
     </div>
 
-    <div class="modal-results" id="modal-results">
-        <div class="results-card">
-            <div class="results-header">
-                <h2>Evaluación Finalizada</h2>
-                <div class="student-name" id="res-student" style="font-size: 1.1rem; font-weight: bold; margin-top: 3px;">---</div>
-                <div id="res-id-biometric" style="font-size: 0.75rem; color: var(--color-biometric); margin-bottom: 5px;">HUELLA FACIAL REGISTRADA (MEDIAPIPE VECTORES)</div>
-                <div id="res-mode" style="font-size: 0.85rem; color: var(--color-primary); font-weight: bold; text-transform: uppercase; margin-top: 2px;">MODO: ---</div>
-                <p id="res-date" style="font-size: 0.75rem; color: var(--color-text-muted); margin-top: 3px;"></p>
-            </div>
-            <div class="score-final" id="res-score">0%</div>
-            <p style="text-align: center; font-size: 0.85rem; margin-bottom: 10px; color: var(--color-text-muted);" id="res-total-logradas"></p>
-            
-            <div class="table-wrapper">
-                <table class="table-results">
-                    <thead>
-                        <tr>
-                            <th>Posición</th>
-                            <th>Resultado</th>
-                        </tr>
-                    </thead>
-                    <tbody id="res-table-body"></tbody>
-                </table>
-            </div>
+    <div class="data-section">
+        <div>
+            <header>
+                <h1>Senshi-Kan Karate Academy</h1>
+                <p>Escaner Biométrico de Acceso Automatizado</p>
+            </header>
 
-            <div class="slogan">ACADEMIA DE KARATE SENSHI-KAN<br>"VENCE TUS LÍMITES"</div>
-            <button class="btn" style="margin-top: 15px;" id="btn-restart-app">Reiniciar Prueba</button>
+            <div class="status-box" id="status-sistema">
+                Conectando con el servidor de Google Sheets...
+            </div>
         </div>
+
+        <div class="student-card">
+            <div class="data-field">
+                <span class="label">Alumno:</span>
+                <span class="value highlight" id="txt-nombre">---</span>
+            </div>
+            <div class="data-field">
+                <span class="label">Estatura:</span>
+                <span class="value" id="txt-estatura">---</span>
+            </div>
+            <div class="data-field">
+                <span class="label">Peso:</span>
+                <span class="value" id="txt-peso">---</span>
+            </div>
+        </div>
+
     </div>
+</div>
 
-    <script>
-        const CONFIG = {
-            TIEMPO_MAESTRO_TOTAL: 120,
-            TIEMPO_VENTANA_POSTURA: 20,
-            TIEMPO_RETENCION_REQUERIDO: 5,
-            TOLERANCIA_PORCENTAJE: 0.50, 
-            BASE_MAX_POSICIONES: 15,
-            color_error: '#ff3333',
-            color_primary: '#e6b800',
-            color_left_node: '#e6b800',   
-            color_right_node: '#33ccff',
-            color_biometric: '#00ffcc',
-            SUJETO_PRUEBA: {
-                ESTATURA: 174,
-                TALON_A_CADERA: 100,
-                TALON_A_RODILLA: 50,
-                TALON_A_PUNTA: 25,
-                ANCHO_CADERAS: 36
-            }
-        };
+<footer>Senshi-Kan · Gestión Deportiva Inteligente</footer>
 
-        let estadoApp = {
-            nombreAlumno: "",
-            estaturaAlumno: 174,
-            guardia: "izquierdo",
-            camaraSeleccionada: "user",
-            modoTextoActual: "Principiante", 
-            tiempoMaestroRestante: CONFIG.TIEMPO_MAESTRO_TOTAL,
-            tiempoPrincipalRestante: CONFIG.TIEMPO_VENTANA_POSTURA,
-            tiempoRetencionAcumulado: 0,
-            score: 0,
-            posicionActual: null,
-            historialResultados: [],
-            catalogoLocal: [],
-            pruebaActiva: false,
-            posturaConectada: false,
-            intervaloMaestro: null,
+<script>
+    // URL del script de tu puente de lectura integrada directamente
+    const URL_DEL_PUENTE = "https://script.google.com/macros/s/AKfycbxXtiKxXBjJ_TL2jT7HrlWfhe8nOWD7Lkt-z3uW1zpDOMSeMkAfYYhzitvO63DYe4BsjQ/exec";
+    
+    const UMBRAL_IDENTIFICACION = 0.08; // Sensibilidad estricta del emparejamiento facial
+    let listaAlumnosSenshiKan = [];
+    let videoElement = document.getElementById('webcam');
+    let canvasElement = document.getElementById('output-canvas');
+    let canvasCtx = canvasElement.getContext('2d');
+    let poseDetector = null;
+    let streamDeCamara = null;
+
+    // 1. Descargar la Base de Datos desde Google Sheets al abrir la app
+    async function inicializarSistema() {
+        try {
+            const respuesta = await fetch(URL_DEL_PUENTE);
+            if (!respuesta.ok) throw new Error("Falla de respuesta en red");
             
-            faseBiometrica: true,
-            progresoBiometrico: 0
-        };
-
-        let AudioCtx = null;
-        let poseInstancia = null; 
-        let ctx = document.getElementById('output-canvas').getContext('2d');
-        let camaraStream = null;
-
-        function seleccionarModo(idBoton, valorTolerancia, nombreTexto) {
-            CONFIG.TOLERANCIA_PORCENTAJE = valorTolerancia;
-            estadoApp.modoTextoActual = nombreTexto;
-            document.querySelectorAll('.btn-mode').forEach(btn => btn.classList.remove('active'));
-            document.getElementById(`mode-${idBoton}`).classList.add('active');
+            listaAlumnosSenshiKan = await respuesta.json();
+            
+            document.getElementById("status-sistema").innerText = "Base de datos cargada. Inicializando cámara...";
+            document.getElementById("status-sistema").style.color = "#e6b800";
+            
+            configurarMediaPipe();
+        } catch (error) {
+            console.error("Error al cruzar el puente: ", error);
+            document.getElementById("status-sistema").innerText = "ERROR CRÍTICO: No se pudo conectar con Sheets.";
+            document.getElementById("status-sistema").style.color = "#ff3333";
         }
+    }
 
-        function inicializarAudio() {
-            if (!AudioCtx) {
-                AudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            }
-        }
-
-        function sonarBeep() {
-            if (!AudioCtx) return;
-            let osc = AudioCtx.createOscillator();
-            let gain = AudioCtx.createGain();
-            osc.connect(gain); gain.connect(AudioCtx.destination);
-            osc.frequency.value = 880;
-            gain.gain.setValueAtTime(0.1, AudioCtx.currentTime);
-            osc.start(); osc.stop(AudioCtx.currentTime + 0.12);
-        }
-
-        function sonarBuzzer() {
-            if (!AudioCtx) return;
-            let osc = AudioCtx.createOscillator();
-            let gain = AudioCtx.createGain();
-            osc.connect(gain); gain.connect(AudioCtx.destination);
-            osc.type = 'sawtooth';
-            osc.frequency.value = 160;
-            gain.gain.setValueAtTime(0.1, AudioCtx.currentTime);
-            osc.start(); osc.stop(AudioCtx.currentTime + 0.25);
-        }
-
-        function hablar(mensaje, callback) {
-            if ('speechSynthesis' in window) {
-                window.speechSynthesis.cancel();
-                let utterance = new SpeechSynthesisUtterance(mensaje);
-                utterance.lang = 'es-MX';
-                if (callback) utterance.onend = callback;
-                window.speechSynthesis.speak(utterance);
-            } else if (callback) {
-                callback();
-            }
-        }
-
-        const CATALOGO_POSICIONES = [
-            {
-                id: "HeisokuDachi",
-                nombre: "Heisoku Dachi",
-                nombreAudio: "Heisoku Dachi",
-                evaluar: (nodos, factorEscala) => {
-                    let distTalones = calcularDistancia2D(nodos.left_ankle, nodos.right_ankle);
-                    let maxDist = (CONFIG.SUJETO_PRUEBA.TALON_A_PUNTA * 0.8) * factorEscala;
-                    let rIzq = calcularAngulo(nodos.left_hip, nodos.left_knee, nodos.left_ankle);
-                    let rDer = calcularAngulo(nodos.right_hip, nodos.right_knee, nodos.right_ankle);
-                    return (distTalones <= maxDist && rIzq >= 150 && rDer >= 150);
-                }
-            },
-            {
-                id: "MusubiDachi",
-                nombre: "Musubi Dachi",
-                nombreAudio: "Musubi Dachi",
-                evaluar: (nodos, factorEscala) => {
-                    let distTalones = calcularDistancia2D(nodos.left_ankle, nodos.right_ankle);
-                    let maxDist = (CONFIG.SUJETO_PRUEBA.TALON_A_PUNTA * 0.9) * factorEscala;
-                    let anguloPies = calcularAnguloEntreVectores(nodos.left_ankle, nodos.left_foot, nodos.right_ankle, nodos.right_foot);
-                    return (distTalones <= maxDist && verificarRango(anguloPies, 45, 45 * CONFIG.TOLERANCIA_PORCENTAJE));
-                }
-            },
-            {
-                id: "HeikoDachi",
-                nombre: "Heiko Dachi",
-                nombreAudio: "Heiko Dachi",
-                evaluar: (nodos, factorEscala) => {
-                    let distTalones = calcularDistancia2D(nodos.left_ankle, nodos.right_ankle);
-                    let distEsperada = CONFIG.SUJETO_PRUEBA.ANCHO_CADERAS * factorEscala;
-                    return verificarRango(distTalones, distEsperada, distEsperada * CONFIG.TOLERANCIA_PORCENTAJE);
-                }
-            },
-            {
-                id: "HachiyiDachi",
-                nombre: "Hachiji Dachi",
-                nombreAudio: "Hachiji Dachi",
-                evaluar: (nodos, factorEscala) => {
-                    let distTalones = calcularDistancia2D(nodos.left_ankle, nodos.right_ankle);
-                    let distEsperada = CONFIG.SUJETO_PRUEBA.ANCHO_CADERAS * factorEscala;
-                    let anguloPies = calcularAnguloEntreVectores(nodos.left_ankle, nodos.left_foot, nodos.right_ankle, nodos.right_foot);
-                    return (verificarRango(distTalones, distEsperada, distEsperada * CONFIG.TOLERANCIA_PORCENTAJE) && verificarRango(anguloPies, 45, 25));
-                }
-            },
-            {
-                id: "NaifanchinDachi",
-                nombre: "Naifanchin Dachi",
-                nombreAudio: "Naifanchin Dachi",
-                evaluar: (nodos, factorEscala) => {
-                    let rIzq = calcularAngulo(nodos.left_hip, nodos.left_knee, nodos.left_ankle);
-                    let rDer = calcularAngulo(nodos.right_hip, nodos.right_knee, nodos.right_ankle);
-                    return (rIzq < 172 && rDer < 172);
-                }
-            },
-            {
-                id: "ShikoDachi",
-                nombre: "Shiko Dachi",
-                nombreAudio: "Shiko Dachi",
-                evaluar: (nodos, factorEscala) => {
-                    let distTalones = calcularDistancia2D(nodos.left_ankle, nodos.right_ankle);
-                    let distEsperada = 90 * factorEscala;
-                    let rIzq = calcularAngulo(nodos.left_hip, nodos.left_knee, nodos.left_ankle);
-                    let rDer = calcularAngulo(nodos.right_hip, nodos.right_knee, nodos.right_ankle);
-                    return (distTalones >= distEsperada * 0.70 && rIzq <= 150 && rDer <= 150);
-                }
-            },
-            {
-                id: "MotoDachi",
-                nombre: "Moto Dachi",
-                nombreAudio: "Moto Dachi Lateral",
-                evaluar: (nodos, factorEscala) => {
-                    let esIzq = (estadoApp.guardia === "izquierdo");
-                    let rDelantera = esIzq ? calcularAngulo(nodos.left_hip, nodos.left_knee, nodos.left_ankle) : calcularAngulo(nodos.right_hip, nodos.right_knee, nodos.right_ankle);
-                    let distPies = calcularDistancia2D(nodos.left_ankle, nodos.right_ankle);
-                    let distEsperada = 60 * factorEscala;
-                    return (verificarRango(distPies, distEsperada, distEsperada * CONFIG.TOLERANCIA_PORCENTAJE) && rDelantera < 155);
-                }
-            },
-            {
-                id: "ZenkutsuDachi",
-                nombre: "Zenkutsu Dachi",
-                nombreAudio: "Zenkutsu Dachi Lateral",
-                evaluar: (nodos, factorEscala) => {
-                    let esIzq = (estadoApp.guardia === "izquierdo");
-                    let rDelantera = esIzq ? calcularAngulo(nodos.left_hip, nodos.left_knee, nodos.left_ankle) : calcularAngulo(nodos.right_hip, nodos.right_knee, nodos.right_ankle);
-                    let distPies = calcularDistancia2D(nodos.left_ankle, nodos.right_ankle);
-                    let distEsperada = 85 * factorEscala;
-                    return (distPies >= distEsperada * 0.65 && rDelantera <= 138);
-                }
-            }
-        ];
-
-        function calcularDistancia2D(p1, p2) {
-            return Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
-        }
-
-        function calcularAngulo(pA, pB, pC) {
-            let ab = { x: pA.x - pB.x, y: pA.y - pB.y };
-            let cb = { x: pC.x - pB.x, y: pC.y - pB.y };
-            let dot = ab.x * cb.x + ab.y * cb.y;
-            let nAB = Math.sqrt(ab.x * ab.x + ab.y * ab.y);
-            let nCB = Math.sqrt(cb.x * cb.x + cb.y * cb.y);
-            let val = dot / (nAB * nCB);
-            if (val > 1) val = 1; if (val < -1) val = -1;
-            return Math.acos(val) * (180 / Math.PI);
-        }
-
-        function calcularAnguloEntreVectores(p1A, p1B, p2A, p2B) {
-            let v1 = { x: p1B.x - p1A.x, y: p1B.y - p1A.y };
-            let v2 = { x: p2B.x - p2A.x, y: p2B.y - p2A.y };
-            let dot = v1.x * v2.x + v1.y * v2.y;
-            let n1 = Math.sqrt(v1.x * v1.x + v1.y * v1.y);
-            let n2 = Math.sqrt(v2.x * v2.x + v2.y * v2.y);
-            let val = dot / (n1 * n2);
-            if (val > 1) val = 1; if (val < -1) val = -1;
-            return Math.acos(val) * (180 / Math.PI);
-        }
-
-        function verificarRango(valor, objective, tol) {
-            return valor >= (objective - tol) && valor <= (objective + tol);
-        }
-
-        const DOM = {
-            btnStart: document.getElementById('btn-start'),
-            setupPanel: document.getElementById('setup-panel'),
-            loadingOverlay: document.getElementById('loading-overlay'),
-            biometricPanel: document.getElementById('biometric-panel'),
-            biometricStatus: document.getElementById('biometric-status'),
-            biometricDetails: document.getElementById('biometric-details'),
-            biometricProgressFill: document.getElementById('biometric-progress-fill'),
-            testPanel: document.getElementById('test-panel'),
-            videoContainer: document.getElementById('video-container'),
-            prepCountdownContainer: document.getElementById('prep-countdown-container'),
-            prepCountdownDisplay: document.getElementById('prep-countdown-display'),
-            txtMaster: document.getElementById('txt-master'),
-            txtTarget: document.getElementById('txt-target'),
-            txtPrincipal: document.getElementById('txt-principal'),
-            txtRetencion: document.getElementById('txt-retencion'),
-            txtScore: document.getElementById('txt-score'),
-            modalResults: document.getElementById('modal-results'),
-            resStudent: document.getElementById('res-student'),
-            resMode: document.getElementById('res-mode'),
-            resDate: document.getElementById('res-date'),
-            resScore: document.getElementById('res-score'),
-            resTotalLogradas: document.getElementById('res-total-logradas'),
-            resTableBody: document.getElementById('res-table-body'),
-            video: document.getElementById('webcam'),
-            canvas: document.getElementById('output-canvas'),
-            btnRestartApp: document.getElementById('btn-restart-app')
-        };
-
-        window.addEventListener('DOMContentLoaded', () => {
-            let nombreGuardado = localStorage.getItem('senshikan_last_student');
-            if (nombreGuardado) document.getElementById('input-name').value = nombreGuardado;
-            let estaturaGuardada = localStorage.getItem('senshikan_last_height');
-            if (estaturaGuardada) document.getElementById('input-height').value = estaturaGuardada;
+    // 2. Instanciar el motor gráfico de MediaPipe Pose
+    function configurarMediaPipe() {
+        poseDetector = new Pose({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
         });
 
-        DOM.btnStart.addEventListener('click', iniciarFlujoEvaluacion);
+        poseDetector.setOptions({
+            modelComplexity: 1,
+            smoothLandmarks: true,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
+
+        poseDetector.onResults(onResultsLandmarks);
+
+        encenderCamara();
+    }
+
+    // 3. Activar hardware de video nativo
+    function encenderCamara() {
+        navigator.mediaDevices.getUserMedia({ 
+            video: { width: 640, height: 480, facingMode: "user" }, 
+            audio: false 
+        })
+        .then(function(stream) {
+            streamDeCamara = stream;
+            videoElement.srcObject = stream;
+            videoElement.addEventListener('loadedmetadata', loopProcesamiento);
+            
+            document.getElementById("status-sistema").innerText = "SISTEMA ACTIVO: Pónte frente a la cámara";
+            document.getElementById("status-sistema").style.color = "#e6b800";
+        })
+        .catch(function(err) {
+            console.error("Error de cámara: ", err);
+            document.getElementById("status-sistema").innerText = "ERROR: No se detectó ninguna cámara activa.";
+            document.getElementById("status-sistema").style.color = "#ff3333";
+        });
+    }
+
+    // Loop síncrono continuo de frames
+    async function loopProcesamiento() {
+        if (!videoElement.paused && !videoElement.ended) {
+            await poseDetector.send({ image: videoElement });
+        }
+        requestAnimationFrame(loopProcesamiento);
+    }
+
+    // 4. Algoritmo de Identificación Biométrica 1:N
+    function buscarAlumnoPorRostro(huellaEnVivo) {
+        let mejorMatch = null;
+        let menorVariacion = 999;
+
+        for (let i = 0; i < listaAlumnosSenshiKan.length; i++) {
+            let alumno = listaAlumnosSenshiKan[i];
+            if (!alumno.huella || alumno.huella.length !== 3) continue;
+
+            // Resta absoluta de proporciones escalares
+            let d1 = Math.abs(huellaEnVivo[0] - alumno.huella[0]);
+            let d2 = Math.abs(huellaEnVivo[1] - alumno.huella[1]);
+            let d3 = Math.abs(huellaEnVivo[2] - alumno.huella[2]);
+            let variacionMedia = (d1 + d2 + d3) / 3;
+
+            if (variacionMedia < menorVariacion) {
+                menorVariacion = variacionMedia;
+                mejorMatch = alumno;
+            }
+        }
+
+        if (menorVariacion <= UMBRAL_IDENTIFICACION) {
+            return mejorMatch;
+        }
+        return null;
+    }
+
+    // 5. Callback de procesamiento de MediaPipe
+    function onResultsLandmarks(results) {
+        // Redimensionar canvas dinámicamente según el video de entrada
+        canvasElement.width = videoElement.videoWidth;
+        canvasElement.height = videoElement.videoHeight;
         
-        DOM.btnRestartApp.addEventListener('click', () => {
-            window.location.reload();
-        });
+        canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
 
-        async function iniciarFlujoEvaluacion() {
-            inicializarAudio();
+        if (!results.poseLandmarks) {
+            marcarRostroNoDetectado();
+            return;
+        }
+
+        const kp = results.poseLandmarks;
+        let nariz = kp[0];
+        let ojoIzq = kp[2];
+        let ojoDer = kp[5];
+        let orejaIzq = kp[7];
+        let orejaDer = kp[8];
+
+        // Validar que los rasgos principales del rostro estén bien encuadrados
+        if (nariz.visibility > 0.5 && ojoIzq.visibility > 0.5 && ojoDer.visibility > 0.5) {
             
-            estadoApp.nombreAlumno = DOM.setupPanel.querySelector('#input-name').value.trim() || "Alumno";
-            estadoApp.estaturaAlumno = parseFloat(DOM.setupPanel.querySelector('#input-height').value) || 174;
-            estadoApp.guardia = DOM.setupPanel.querySelector('#select-guard').value;
-            estadoApp.camaraSeleccionada = DOM.setupPanel.querySelector('#select-camera').value;
+            // Pintar círculos de referencia biométrica sobre el canvas
+            dibujarPuntoDeControl(nariz, "#e6b800");
+            dibujarPuntoDeControl(ojoIzq, "#ffffff");
+            dibujarPuntoDeControl(ojoDer, "#ffffff");
 
-            localStorage.setItem('senshikan_last_student', estadoApp.nombreAlumno);
-            localStorage.setItem('senshikan_last_height', DOM.setupPanel.querySelector('#input-height').value.trim());
-
-            if (estadoApp.camaraSeleccionada === "user") {
-                DOM.videoContainer.classList.add('mirror');
-            } else {
-                DOM.videoContainer.classList.remove('mirror');
-            }
-
-            DOM.setupPanel.style.display = 'none';
-            DOM.loadingOverlay.style.display = 'block';
-
-            try {
-                // Instanciar MediaPipe Pose de manera limpia
-                poseInstancia = new Pose({
-                    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
-                });
-
-                poseInstancia.setOptions({
-                    modelComplexity: 1,
-                    smoothLandmarks: true,
-                    enableSegmentation: false,
-                    smoothSegmentation: false,
-                    minDetectionConfidence: 0.5,
-                    minTrackingConfidence: 0.5
-                });
-
-                poseInstancia.onResults(procesarResultadosMediaPipe);
-
-                camaraStream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: estadoApp.camaraSeleccionada, width: 640, height: 480 },
-                    audio: false
-                });
+            // Escala geométrica base (Distancia entre ojos)
+            let E = Math.sqrt(Math.pow(ojoDer.x - ojoIzq.x, 2) + Math.pow(ojoDer.y - ojoIzq.y, 2));
+            
+            if (E > 0) {
+                let p1 = Math.sqrt(Math.pow(nariz.x - ojoIzq.x, 2) + Math.pow(nariz.y - ojoIzq.y, 2)) / E;
+                let p2 = Math.sqrt(Math.pow(nariz.x - ojoDer.x, 2) + Math.pow(nariz.y - ojoDer.y, 2)) / E;
+                let p3 = Math.sqrt(Math.pow(orejaIzq.x - orejaDer.x, 2) + Math.pow(orejaIzq.y - orejaDer.y, 2)) / E;
                 
-                DOM.video.srcObject = camaraStream;
-                DOM.video.onloadedmetadata = () => {
-                    DOM.canvas.width = DOM.video.videoWidth;
-                    DOM.canvas.height = DOM.video.videoHeight;
-                    
-                    DOM.loadingOverlay.style.display = 'none';
-                    DOM.videoContainer.style.display = 'block';
-                    DOM.biometricPanel.style.display = 'flex';
-                    
-                    hablar(`Iniciando escaneo biométrico. Colócate frente a la cámara, ${estadoApp.nombreAlumno}.`);
-                    
-                    // Ciclo continuo de lectura de frames de video
-                    ejecutarBucleVideo();
-                };
+                let huellaEnVivo = [p1, p2, p3];
 
-            } catch (err) {
-                alert("Error de acceso a cámara o inicialización: " + err.message);
-                window.location.reload();
-            }
-        }
+                // Buscar coincidencia en la base de datos descargada
+                let alumnoMatch = buscarAlumnoPorRostro(huellaEnVivo);
 
-        async function ejecutarBucleVideo() {
-            if (camaraStream && DOM.video.readyState >= 2) {
-                await poseInstancia.send({ image: DOM.video });
-            }
-            requestAnimationFrame(ejecutarBucleVideo);
-        }
-
-        function procesarResultadosMediaPipe(results) {
-            ctx.clearRect(0, 0, DOM.canvas.width, DOM.canvas.height);
-            
-            if (!results.poseLandmarks) {
-                if (estadoApp.faseBiometrica) {
-                    DOM.biometricStatus.innerText = "SISTEMA BIOMÉTRICO: BUSCANDO ALUMNO...";
-                    DOM.biometricDetails.innerText = "Ubícate dentro del marco de la cámara.";
-                    DOM.biometricDetails.style.color = CONFIG.color_error;
-                }
-                return;
-            }
-
-            const kp = results.poseLandmarks;
-
-            // FASE BIOMÉTRICA CON MEDIAPIPE (Puntos faciales integrados 0 al 6)
-            if (estadoApp.faseBiometrica) {
-                let nariz = kp[0];
-                let ojoIzq = kp[2];
-                let ojoDer = kp[5];
-
-                // Verificar visibilidad confiable del rostro
-                if (nariz.visibility > 0.6 && ojoIzq.visibility > 0.6 && ojoDer.visibility > 0.6) {
-                    
-                    // Dibujar hito biométrico alrededor de los ojos y nariz
-                    ctx.lineWidth = 3;
-                    ctx.strokeStyle = CONFIG.color_biometric;
-                    
-                    let radioRostro = Math.abs(ojoIzq.x - ojoDer.x) * DOM.canvas.width * 2;
-                    ctx.beginPath();
-                    ctx.arc(nariz.x * DOM.canvas.width, nariz.y * DOM.canvas.height, radioRostro > 20 ? radioRostro : 40, 0, 2 * Math.PI);
-                    ctx.stroke();
-
-                    // Dibujar puntos clave faciales
-                    for(let i=0; i<=6; i++) {
-                        let fX = kp[i].x * DOM.canvas.width;
-                        let fY = kp[i].y * DOM.canvas.height;
-                        ctx.beginPath();
-                        ctx.arc(fX, fY, 3, 0, 2 * Math.PI);
-                        ctx.fillStyle = CONFIG.color_biometric;
-                        ctx.fill();
-                    }
-
-                    estadoApp.progresoBiometrico += 1.0;
-                    if (estadoApp.progresoBiometrico > 100) estadoApp.progresoBiometrico = 100;
-
-                    DOM.biometricStatus.innerText = `REGISTRANDO ROSTRO: ${Math.floor(estadoApp.progresoBiometrico)}%`;
-                    DOM.biometricDetails.innerText = "Estructura craneal vectorial detectada correctamente.";
-                    DOM.biometricDetails.style.color = CONFIG.color_biometric;
-                    DOM.biometricProgressFill.style.width = `${estadoApp.progresoBiometrico}%`;
-
-                    if (estadoApp.progresoBiometrico >= 100) {
-                        estadoApp.faseBiometrica = false;
-                        sonarBeep();
-                        DOM.biometricStatus.innerText = "IDENTIDAD ASOCIADA - INTEGRIDAD OK";
-                        DOM.biometricStatus.style.color = "#33cc66";
-                        DOM.biometricDetails.innerText = `Huella digitalizada para ${estadoApp.nombreAlumno}.`;
+                if (alumnoMatch) {
+                    // Evaluar la propiedad booleana de acceso (TRUE)
+                    if (alumnoMatch.acceso === true) {
+                        document.getElementById("txt-nombre").innerText = alumnoMatch.nombre;
+                        document.getElementById("txt-estatura").innerText = alumnoMatch.estatura;
+                        document.getElementById("txt-peso").innerText = alumnoMatch.peso;
                         
-                        setTimeout(() => {
-                            DOM.biometricPanel.style.display = 'none';
-                            DOM.prepCountdownContainer.style.display = 'block';
-                            hablar(`Identificación lista. Camina hacia atrás para enfocar tu cuerpo en modo ${estadoApp.modoTextoActual}`, ejecutarConteoInicial);
-                        }, 1500);
+                        document.getElementById("status-sistema").innerText = "ACCESO PERMITIDO - IDENTIDAD CONFIRMADA";
+                        document.getElementById("status-sistema").style.color = "#33cc66"; // Verde éxito
+                    } else {
+                        // El alumno existe pero tiene estatus FALSE
+                        document.getElementById("status-sistema").innerText = "ACCESO DENEGADO: Cuenta Inactiva";
+                        document.getElementById("status-sistema").style.color = "#ff3333"; // Rojo alerta
+                        limpiarFichaInterfaz();
                     }
                 } else {
-                    estadoApp.progresoBiometrico -= 0.5;
-                    if (estadoApp.progresoBiometrico < 0) estadoApp.progresoBiometrico = 0;
-                    DOM.biometricStatus.innerText = "SISTEMA BIOMÉTRICO: MIRA A LA CÁMARA...";
-                    DOM.biometricProgressFill.style.width = `${estadoApp.progresoBiometrico}%`;
-                }
-                return; // Cortar aquí durante la biometría
-            }
-
-            // FASE DE EVALUACIÓN CINEMÁTICA DE POSTURAS
-            if (estadoApp.pruebaActiva) {
-                // Mapear nodos de MediaPipe Pose
-                const nodos = {
-                    left_hip: { x: kp[23].x * DOM.canvas.width, y: kp[23].y * DOM.canvas.height },
-                    right_hip: { x: kp[24].x * DOM.canvas.width, y: kp[24].y * DOM.canvas.height },
-                    left_knee: { x: kp[25].x * DOM.canvas.width, y: kp[25].y * DOM.canvas.height },
-                    right_knee: { x: kp[26].x * DOM.canvas.width, y: kp[26].y * DOM.canvas.height },
-                    left_ankle: { x: kp[27].x * DOM.canvas.width, y: kp[27].y * DOM.canvas.height },
-                    right_ankle: { x: kp[28].x * DOM.canvas.width, y: kp[28].y * DOM.canvas.height },
-                    left_foot: { x: kp[31].x * DOM.canvas.width, y: kp[31].y * DOM.canvas.height },
-                    right_foot: { x: kp[32].x * DOM.canvas.width, y: kp[32].y * DOM.canvas.height }
-                };
-
-                // Validar visibilidad mínima de las extremidades inferiores (confianza > 0.4)
-                let piernasVisibles = kp[23].visibility > 0.4 && kp[24].visibility > 0.4 && 
-                                       kp[27].visibility > 0.4 && kp[28].visibility > 0.4;
-
-                if (piernasVisibles) {
-                    ctx.lineWidth = 4;
-
-                    // Dibujar líneas del esqueleto
-                    dibujarLinea(ctx, nodos.left_hip, nodos.left_knee, CONFIG.color_left_node);
-                    dibujarLinea(ctx, nodos.left_knee, nodos.left_ankle, CONFIG.color_left_node);
-                    dibujarLinea(ctx, nodos.left_ankle, nodos.left_foot, CONFIG.color_left_node);
-
-                    dibujarLinea(ctx, nodos.right_hip, nodos.right_knee, CONFIG.color_right_node);
-                    dibujarLinea(ctx, nodos.right_knee, nodos.right_ankle, CONFIG.color_right_node);
-                    dibujarLinea(ctx, nodos.right_ankle, nodos.right_foot, CONFIG.color_right_node);
-
-                    // Dibujar articulaciones
-                    Object.keys(nodos).forEach(key => {
-                        let colorNodo = key.startsWith('left') ? CONFIG.color_left_node : CONFIG.color_right_node;
-                        dibujarPunto(ctx, nodos[key].x, nodos[key].y, colorNodo);
-                    });
-
-                    // Cálculo biomecánico de escala adaptativa
-                    let pxEstatura = calcularDistancia2D(nodos.left_hip, nodos.left_ankle);
-                    let factorEscala = pxEstatura / CONFIG.SUJETO_PRUEBA.TALON_A_CADERA;
-
-                    // Evaluar criterios geométricos de la postura actual
-                    let cumplePostura = estadoApp.posicionActual.evaluar(nodos, factorEscala);
-
-                    if (cumplePostura && !estadoApp.posturaConectada) {
-                        estadoApp.posturaConectada = true;
-                        sonarBeep();
-                    } else if (!cumplePostura && estadoApp.posturaConectada) {
-                        estadoApp.posturaConectada = false;
-                        estadoApp.tiempoRetencionAcumulado = 0;
-                        sonarBuzzer();
-                    }
+                    document.getElementById("status-sistema").innerText = "Buscando rostro en el padrón de alumnos...";
+                    document.getElementById("status-sistema").style.color = "#e6b800";
+                    limpiarFichaInterfaz();
                 }
             }
+        } else {
+            marcarRostroNoDetectado();
         }
+    }
 
-        function ejecutarConteoInicial() {
-            let cuentaRegresiva = 5;
-            DOM.prepCountdownDisplay.innerText = cuentaRegresiva;
-            
-            let timerInicial = setInterval(() => {
-                cuentaRegresiva--;
-                if (cuentaRegresiva > 0) {
-                    DOM.prepCountdownDisplay.innerText = cuentaRegresiva;
-                } else {
-                    clearInterval(timerInicial);
-                    DOM.prepCountdownContainer.style.display = 'none';
-                    arrancarEvaluacionOficial();
-                }
-            }, 1000);
-        }
+    function dibujarPuntoDeControl(landmark, color) {
+        canvasCtx.beginPath();
+        canvasCtx.arc(landmark.x * canvasElement.width, landmark.y * canvasElement.height, 5, 0, 2 * Math.PI);
+        canvasCtx.fillStyle = color;
+        canvasCtx.fill();
+    }
 
-        function arrancarEvaluacionOficial() {
-            DOM.testPanel.style.display = 'block';
-            estadoApp.catalogoLocal = [...CATALOGO_POSICIONES];
-            estadoApp.pruebaActiva = true;
+    function marcarRostroNoDetectado() {
+        document.getElementById("status-sistema").innerText = "SISTEMA ACTIVO: Rostro no detectado o mal posicionado";
+        document.getElementById("status-sistema").style.color = "#aaaaaa";
+        limpiarFichaInterfaz();
+    }
 
-            siguientePosicion();
-            encenderMotoresTimers();
-        }
+    function limpiarFichaInterfaz() {
+        document.getElementById("txt-nombre").innerText = "---";
+        document.getElementById("txt-estatura").innerText = "---";
+        document.getElementById("txt-peso").innerText = "---";
+    }
 
-        function encenderMotoresTimers() {
-            estadoApp.intervaloMaestro = setInterval(() => {
-                estadoApp.tiempoMaestroRestante--;
-                let min = Math.floor(estadoApp.tiempoMaestroRestante / 60);
-                let seg = estadoApp.tiempoMaestroRestante % 60;
-                DOM.txtMaster.innerText = `${min.toString().padStart(2, '0')}:${seg.toString().padStart(2, '0')}`;
-                if (estadoApp.tiempoMaestroRestante <= 0) finalizarPruebaGlobal();
-            }, 1000);
+    // Detonar la consulta masiva inmediatamente al cargar el DOM de la aplicación
+    window.addEventListener("DOMContentLoaded", inicializarSistema);
+</script>
 
-            let ultimoTiempo = performance.now();
-            function bucleTimers(ahora) {
-                if (!estadoApp.pruebaActiva) return;
-                let delta = (ahora - ultimoTiempo) / 1000;
-                ultimoTiempo = ahora;
-
-                if (!estadoApp.posturaConectada) {
-                    estadoApp.tiempoPrincipalRestante -= delta;
-                    if (estadoApp.tiempoPrincipalRestante < 0) estadoApp.tiempoPrincipalRestante = 0;
-                    DOM.txtPrincipal.innerText = estadoApp.tiempoPrincipalRestante.toFixed(2);
-                    DOM.txtPrincipal.style.color = (estadoApp.tiempoPrincipalRestante <= 5) ? CONFIG.color_error : CONFIG.color_primary;
-                    DOM.txtRetencion.style.color = CONFIG.color_primary; 
-
-                    if (estadoApp.tiempoPrincipalRestante <= 0) {
-                        sonarBuzzer();
-                        hablar("Siguiente");
-                        estadoApp.historialResultados.push({ nombre: estadoApp.posicionActual.nombre, logrado: false });
-                        siguientePosicion();
-                    }
-                } else {
-                    estadoApp.tiempoRetencionAcumulado += delta;
-                    DOM.txtRetencion.innerText = `${estadoApp.tiempoRetencionAcumulado.toFixed(1)}s / 5s`;
-                    DOM.txtRetencion.style.color = CONFIG.color_error; 
-
-                    if (estadoApp.tiempoRetencionAcumulado >= CONFIG.TIEMPO_RETENCION_REQUERIDO) {
-                        estadoApp.score++;
-                        DOM.txtScore.innerText = estadoApp.score;
-                        estadoApp.historialResultados.push({ nombre: estadoApp.posicionActual.nombre, logrado: true });
-                        siguientePosicion();
-                    }
-                }
-                requestAnimationFrame(bucleTimers);
-            }
-            requestAnimationFrame(bucleTimers);
-        }
-
-        function siguientePosicion() {
-            if (estadoApp.catalogoLocal.length === 0) estadoApp.catalogoLocal = [...CATALOGO_POSICIONES];
-            let ind = Math.floor(Math.random() * estadoApp.catalogoLocal.length);
-            estadoApp.posicionActual = estadoApp.catalogoLocal.splice(ind, 1)[0];
-            
-            estadoApp.tiempoPrincipalRestante = CONFIG.TIEMPO_VENTANA_POSTURA;
-            estadoApp.tiempoRetencionAcumulado = 0;
-            estadoApp.posturaConectada = false;
-
-            DOM.txtTarget.innerText = estadoApp.posicionActual.nombre;
-            DOM.txtRetencion.innerText = "0.0s / 5s";
-            DOM.txtRetencion.style.color = CONFIG.color_primary;
-            
-            hablar(`${estadoApp.posicionActual.nombreAudio}`);
-        }
-
-        function finalizarPruebaGlobal() {
-            estadoApp.pruebaActiva = false;
-            clearInterval(estadoApp.intervaloMaestro);
-            
-            if (camaraStream) {
-                camaraStream.getTracks().forEach(track => track.stop());
-            }
-
-            let calificacionFinal = Math.min(100, Math.round((estadoApp.score * 100) / CONFIG.BASE_MAX_POSICIONES));
-
-            DOM.resStudent.innerText = estadoApp.nombreAlumno;
-            DOM.resMode.innerText = `MODO: ${estadoApp.modoTextoActual}`;
-            DOM.resDate.innerText = new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
-            DOM.resScore.innerText = `${calificacionFinal}%`;
-            DOM.resTotalLogradas.innerText = `${estadoApp.score} de 15 posiciones requeridas`;
-
-            DOM.resTableBody.innerHTML = "";
-            estadoApp.historialResultados.forEach(res => {
-                let f = document.createElement('tr');
-                f.innerHTML = `<td>${res.nombre}</td><td class="${res.logrado ? 'status-ok' : 'status-fail'}">${res.logrado ? 'LOGRADA (+1)' : 'NO LOGRADA'}</td>`;
-                DOM.resTableBody.appendChild(f);
-            });
-            DOM.modalResults.style.display = 'flex';
-
-            let locucionFinal = `Prueba finalizada. Excelente esfuerzo en modo ${estadoApp.modoTextoActual}, ${estadoApp.nombreAlumno}.`;
-            hablar(locucionFinal);
-        }
-
-        function dibujarLinea(cCtx, p1, p2, color) {
-            cCtx.beginPath();
-            cCtx.moveTo(p1.x, p1.y);
-            cCtx.lineTo(p2.x, p2.y);
-            cCtx.strokeStyle = color;
-            cCtx.stroke();
-            cCtx.closePath();
-        }
-
-        function dibujarPunto(cCtx, sX, sY, color) {
-            cCtx.beginPath();
-            cCtx.arc(sX, sY, 6, 0, 2 * Math.PI);
-            cCtx.fillStyle = color;
-            cCtx.fill();
-            cCtx.lineWidth = 1.5;
-            cCtx.strokeStyle = '#ffffff';
-            cCtx.stroke();
-            cCtx.closePath();
-        }
-    </script>
 </body>
 </html>
