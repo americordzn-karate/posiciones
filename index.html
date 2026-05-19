@@ -649,33 +649,43 @@
             {
     id: "NekoAshiDachi",
     nombre: "Nekoashi Dachi",
-    nombreAudio: "Nekoashi Dachi",
+    nombreAudio: "Nekoashi Dachi Lateral",
     evaluar: (nodos, factorEscala) => {
         let esIzq = (estadoApp.guardia === "izquierdo");
         
-        // Identificamos cuál pierna es la de carga (atrasada) y cuál la de ataque (adelantada)
+        // Identificación de segmentos según la guardia lateral
         let caderaAtrasada = esIzq ? nodos.right_hip : nodos.left_hip;
         let rodillaAtrasada = esIzq ? nodos.right_knee : nodos.left_knee;
         let tobilloAtrasado = esIzq ? nodos.right_ankle : nodos.left_ankle;
         
         let caderaAdelantada = esIzq ? nodos.left_hip : nodos.right_hip;
-        let rodillaAdelantada = esIzq ? nodos.left_knee : nodos.right_knee;
+        let rodillaAdelantada = esIzq ? nodos.left_knee : nodos.left_knee;
         let tobilloAdelantado = esIzq ? nodos.left_ankle : nodos.right_ankle;
+        let pieAdelantado = esIzq ? nodos.left_foot : nodos.right_foot;
+        let pieAtrasado = esIzq ? nodos.right_foot : nodos.left_foot;
 
-        // 1. Flexión de la rodilla de carga (Atrasada): Debe estar marcada entre 90 y 130 grados
+        // 1. Pierna Atrasada: Rodilla flexionada a 150 grados
         let anguloRodillaAtrasada = calcularAngulo(caderaAtrasada, rodillaAtrasada, tobilloAtrasado);
-        let rodillaAtrasadaCorrecta = (anguloRodillaAtrasada >= 90 && anguloRodillaAtrasada <= 130);
+        let rodillaAtrasadaOk = verificarRango(anguloRodillaAtrasada, 150, 150 * CONFIG.TOLERANCIA_PORCENTAJE);
 
-        // 2. Flexión de la rodilla adelantada: No debe estar estirada (menor a 150 grados)
+        // 2. Pierna Adelantada: Rodilla flexionada a 130 grados
         let anguloRodillaAdelantada = calcularAngulo(caderaAdelantada, rodillaAdelantada, tobilloAdelantado);
-        let rodillaAdelantadaCorrecta = (anguloRodillaAdelantada < 150);
+        let rodillaAdelantadaOk = verificarRango(anguloRodillaAdelantada, 130, 130 * CONFIG.TOLERANCIA_PORCENTAJE);
 
-        // 3. Distancia entre pies (Posición corta): Aproximadamente una distancia menor o igual al ancho de hombros/caderas
-        let distPies = calcularDistancia2D(nodos.left_ankle, nodos.right_ankle);
-        let distMaxEsperada = (CONFIG.SUJETO_PRUEBA.ANCHO_CADERAS * 1.2) * factorEscala;
-        let distanciaCorrecta = (distPies <= distMaxEsperada);
+        // 3. Distancia entre puntas de pies: Exactamente 28 cm (convertidos a píxeles con el factor de escala)
+        let distEntrePuntas = calcularDistancia2D(pieAdelantado, pieAtrasado);
+        let distEsperadaPx = 28 * factorEscala;
+        // Aplicamos la tolerancia configurada para permitir flexibilidad según el nivel (Principiante, Intermedio, Avanzado)
+        let distanciaPiesOk = verificarRango(distEntrePuntas, distEsperadaPx, distEsperadaPx * CONFIG.TOLERANCIA_PORCENTAJE);
 
-        return (rodillaAtrasadaCorrecta && rodillaAdelantadaCorrecta && distanciaCorrecta);
+        // 4. Alineación y elevación del talón adelantado (Ángulo relativo antepié-tobillo)
+        let anguloTalonAdelantado = calcularAngulo(caderaAdelantada, tobilloAdelantado, pieAdelantado);
+        let talonAdelantadoOk = verificarRango(anguloTalonAdelantado, 145, 15);
+
+        // 5. Cadera adelantada con respecto a la atrasada en el plano lateral
+        let caderaAlineadaOk = esIzq ? (caderaAdelantada.x < caderaAtrasada.x) : (caderaAdelantada.x > caderaAtrasada.x);
+
+        return (rodillaAtrasadaOk && rodillaAdelantadaOk && distanciaPiesOk && talonAdelantadoOk && caderaAlineadaOk);
     }
 }
         ];
