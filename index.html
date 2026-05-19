@@ -167,7 +167,6 @@
             color: var(--color-text-muted);
         }
 
-        /* AJUSTE FINO: Nombre de posición más grande para lectura a distancia */
         .target-pose {
             grid-column: 1 / -1;
             font-size: 1.6rem; 
@@ -496,7 +495,8 @@
             catalogoLocal: [],
             pruebaActiva: false,
             posturaConectada: false,
-            intervaloMaestro: null
+            intervaloMaestro: null,
+            segmentosConFalla: {} // Guarda qué partes del cuerpo están mal en tiempo real
         };
 
         let AudioCtx = null;
@@ -555,11 +555,18 @@
                 nombre: "Heisoku Dachi",
                 nombreAudio: "Heisoku Dachi",
                 evaluar: (nodos, factorEscala) => {
+                    let fallas = { izquierdo: false, derecho: false, distancia: false };
                     let distTalones = calcularDistancia2D(nodos.left_ankle, nodos.right_ankle);
                     let maxDist = (CONFIG.SUJETO_PRUEBA.TALON_A_PUNTA * 0.8) * factorEscala;
                     let rIzq = calcularAngulo(nodos.left_hip, nodos.left_knee, nodos.left_ankle);
                     let rDer = calcularAngulo(nodos.right_hip, nodos.right_knee, nodos.right_ankle);
-                    return (distTalones <= maxDist && rIzq >= 150 && rDer >= 150);
+                    
+                    if (distTalones > maxDist) fallas.distancia = true;
+                    if (rIzq < 150) fallas.izquierdo = true;
+                    if (rDer < 150) fallas.derecho = true;
+
+                    estadoApp.segmentosConFalla = fallas;
+                    return (!fallas.izquierdo && !fallas.derecho && !fallas.distancia);
                 }
             },
             {
@@ -567,10 +574,18 @@
                 nombre: "Musubi Dachi",
                 nombreAudio: "Musubi Dachi",
                 evaluar: (nodos, factorEscala) => {
+                    let fallas = { izquierdo: false, derecho: false, distancia: false };
                     let distTalones = calcularDistancia2D(nodos.left_ankle, nodos.right_ankle);
                     let maxDist = (CONFIG.SUJETO_PRUEBA.TALON_A_PUNTA * 0.9) * factorEscala;
                     let anguloPies = calcularAnguloEntreVectores(nodos.left_ankle, nodos.left_foot, nodos.right_ankle, nodos.right_foot);
-                    return (distTalones <= maxDist && verificarRango(anguloPies, 45, 45 * CONFIG.TOLERANCIA_PORCENTAJE));
+                    
+                    if (distTalones > maxDist) fallas.distancia = true;
+                    if (!verificarRango(anguloPies, 45, 45 * CONFIG.TOLERANCIA_PORCENTAJE)) {
+                        fallas.izquierdo = true; fallas.derecho = true;
+                    }
+                    
+                    estadoApp.segmentosConFalla = fallas;
+                    return (!fallas.izquierdo && !fallas.derecho && !fallas.distancia);
                 }
             },
             {
@@ -578,20 +593,33 @@
                 nombre: "Heiko Dachi",
                 nombreAudio: "Heiko Dachi",
                 evaluar: (nodos, factorEscala) => {
+                    let fallas = { izquierdo: false, derecho: false, distancia: false };
                     let distTalones = calcularDistancia2D(nodos.left_ankle, nodos.right_ankle);
                     let distEsperada = CONFIG.SUJETO_PRUEBA.ANCHO_CADERAS * factorEscala;
-                    return verificarRango(distTalones, distEsperada, distEsperada * CONFIG.TOLERANCIA_PORCENTAJE);
+                    
+                    if (!verificarRango(distTalones, distEsperada, distEsperada * CONFIG.TOLERANCIA_PORCENTAJE)) {
+                        fallas.distancia = true; fallas.izquierdo = true; fallas.derecho = true;
+                    }
+                    
+                    estadoApp.segmentosConFalla = fallas;
+                    return (!fallas.izquierdo && !fallas.derecho && !fallas.distancia);
                 }
             },
             {
                 id: "HachiyiDachi",
                 nombre: "Hachiji Dachi",
-                nombreAudio: "Hachiyi Dachi", // Modificado por referencia técnica
+                nombreAudio: "Hachiyi Dachi",
                 evaluar: (nodos, factorEscala) => {
+                    let fallas = { izquierdo: false, derecho: false, distancia: false };
                     let distTalones = calcularDistancia2D(nodos.left_ankle, nodos.right_ankle);
                     let distEsperada = CONFIG.SUJETO_PRUEBA.ANCHO_CADERAS * factorEscala;
                     let anguloPies = calcularAnguloEntreVectores(nodos.left_ankle, nodos.left_foot, nodos.right_ankle, nodos.right_foot);
-                    return (verificarRango(distTalones, distEsperada, distEsperada * CONFIG.TOLERANCIA_PORCENTAJE) && verificarRango(anguloPies, 45, 25));
+                    
+                    if (!verificarRango(distTalones, distEsperada, distEsperada * CONFIG.TOLERANCIA_PORCENTAJE)) fallas.distancia = true;
+                    if (!verificarRango(anguloPies, 45, 25)) { fallas.izquierdo = true; fallas.derecho = true; }
+                    
+                    estadoApp.segmentosConFalla = fallas;
+                    return (!fallas.izquierdo && !fallas.derecho && !fallas.distancia);
                 }
             },
             {
@@ -599,9 +627,15 @@
                 nombre: "Naifanchin Dachi",
                 nombreAudio: "Naifanchin Dachi",
                 evaluar: (nodos, factorEscala) => {
+                    let fallas = { izquierdo: false, derecho: false, distancia: false };
                     let rIzq = calcularAngulo(nodos.left_hip, nodos.left_knee, nodos.left_ankle);
                     let rDer = calcularAngulo(nodos.right_hip, nodos.right_knee, nodos.right_ankle);
-                    return (rIzq < 172 && rDer < 172);
+                    
+                    if (rIzq >= 172) fallas.izquierdo = true;
+                    if (rDer >= 172) fallas.derecho = true;
+                    
+                    estadoApp.segmentosConFalla = fallas;
+                    return (!fallas.izquierdo && !fallas.derecho);
                 }
             },
             {
@@ -609,11 +643,18 @@
                 nombre: "Shiko Dachi",
                 nombreAudio: "Shiko Dachi",
                 evaluar: (nodos, factorEscala) => {
+                    let fallas = { izquierdo: false, derecho: false, distancia: false };
                     let distTalones = calcularDistancia2D(nodos.left_ankle, nodos.right_ankle);
                     let distEsperada = 90 * factorEscala;
                     let rIzq = calcularAngulo(nodos.left_hip, nodos.left_knee, nodos.left_ankle);
                     let rDer = calcularAngulo(nodos.right_hip, nodos.right_knee, nodos.right_ankle);
-                    return (distTalones >= distEsperada * 0.70 && rIzq <= 150 && rDer <= 150);
+                    
+                    if (distTalones < distEsperada * 0.70) fallas.distancia = true;
+                    if (rIzq > 150) fallas.izquierdo = true;
+                    if (rDer > 150) fallas.derecho = true;
+                    
+                    estadoApp.segmentosConFalla = fallas;
+                    return (!fallas.izquierdo && !fallas.derecho && !fallas.distancia);
                 }
             },
             {
@@ -621,11 +662,20 @@
                 nombre: "Moto Dachi",
                 nombreAudio: "Moto Dachi Lateral",
                 evaluar: (nodos, factorEscala) => {
+                    let fallas = { izquierdo: false, derecho: false, distancia: false };
                     let esIzq = (estadoApp.guardia === "izquierdo");
+                    
                     let rDelantera = esIzq ? calcularAngulo(nodos.left_hip, nodos.left_knee, nodos.left_ankle) : calcularAngulo(nodos.right_hip, nodos.right_knee, nodos.right_ankle);
                     let distPies = calcularDistancia2D(nodos.left_ankle, nodos.right_ankle);
                     let distEsperada = 60 * factorEscala;
-                    return (verificarRango(distPies, distEsperada, distEsperada * CONFIG.TOLERANCIA_PORCENTAJE) && rDelantera < 155);
+                    
+                    if (!verificarRango(distPies, distEsperada, distEsperada * CONFIG.TOLERANCIA_PORCENTAJE)) fallas.distancia = true;
+                    if (rDelantera >= 155) {
+                        if (esIzq) fallas.izquierdo = true; else fallas.derecho = true;
+                    }
+                    
+                    estadoApp.segmentosConFalla = fallas;
+                    return (!fallas.izquierdo && !fallas.derecho && !fallas.distancia);
                 }
             },
             {
@@ -633,11 +683,20 @@
                 nombre: "Zenkutsu Dachi",
                 nombreAudio: "Zenkutsu Dachi Lateral",
                 evaluar: (nodos, factorEscala) => {
+                    let fallas = { izquierdo: false, derecho: false, distancia: false };
                     let esIzq = (estadoApp.guardia === "izquierdo");
+                    
                     let rDelantera = esIzq ? calcularAngulo(nodos.left_hip, nodos.left_knee, nodos.left_ankle) : calcularAngulo(nodos.right_hip, nodos.right_knee, nodos.right_ankle);
                     let distPies = calcularDistancia2D(nodos.left_ankle, nodos.right_ankle);
                     let distEsperada = 85 * factorEscala;
-                    return (distPies >= distEsperada * 0.65 && rDelantera <= 138);
+                    
+                    if (distPies < distEsperada * 0.65) fallas.distancia = true;
+                    if (rDelantera > 138) {
+                        if (esIzq) fallas.izquierdo = true; else fallas.derecho = true;
+                    }
+                    
+                    estadoApp.segmentosConFalla = fallas;
+                    return (!fallas.izquierdo && !fallas.derecho && !fallas.distancia);
                 }
             },
             {
@@ -645,6 +704,7 @@
                 nombre: "Nekoashi Dachi",
                 nombreAudio: "Nekoashi Dachi Lateral",
                 evaluar: (nodos, factorEscala) => {
+                    let fallas = { izquierdo: false, derecho: false, distancia: false };
                     let esIzq = (estadoApp.guardia === "izquierdo");
                     
                     let caderaAtrasada = esIzq ? nodos.right_hip : nodos.left_hip;
@@ -653,30 +713,37 @@
                     
                     let caderaAdelantada = esIzq ? nodos.left_hip : nodos.right_hip;
                     let rodillaAdelantada = esIzq ? nodos.left_knee : nodos.right_knee;
-                    let tobilloAdelantado = esIzq ? nodos.left_ankle : nodos.right_ankle;
+                    let tobilloAdelantado = esIzq ? nodos.right_ankle : nodos.right_ankle;
                     let pieAdelantado = esIzq ? nodos.left_foot : nodos.right_foot;
                     let pieAtrasado = esIzq ? nodos.right_foot : nodos.left_foot;
 
-                    // 1. Pierna Atrasada: Rodilla flexionada a 150 grados
                     let anguloRodillaAtrasada = calcularAngulo(caderaAtrasada, rodillaAtrasada, tobilloAtrasado);
                     let rodillaAtrasadaOk = verificarRango(anguloRodillaAtrasada, 150, 150 * CONFIG.TOLERANCIA_PORCENTAJE);
 
-                    // 2. Pierna Adelantada: Rodilla flexionada a 130 grados
                     let anguloRodillaAdelantada = calcularAngulo(caderaAdelantada, rodillaAdelantada, tobilloAdelantado);
                     let rodillaAdelantadaOk = verificarRango(anguloRodillaAdelantada, 130, 130 * CONFIG.TOLERANCIA_PORCENTAJE);
 
-                    // 3. Distancia entre puntas: Ajustada a 24 centímetros por referencia técnica
                     let distEntrePuntas = calcularDistancia2D(pieAdelantado, pieAtrasado);
                     let distEsperadaPx = 24 * factorEscala;
                     let distanciaPiesOk = verificarRango(distEntrePuntas, distEsperadaPx, distEsperadaPx * CONFIG.TOLERANCIA_PORCENTAJE);
 
-                    // 4. Alineación y elevación del talón adelantado
                     let anguloTalonAdelantado = calcularAngulo(caderaAdelantada, tobilloAdelantado, pieAdelantado);
                     let talonAdelantadoOk = verificarRango(anguloTalonAdelantado, 145, 15);
 
-                    // 5. Cadera adelantada en plano lateral
                     let caderaAlineadaOk = esIzq ? (caderaAdelantada.x < caderaAtrasada.x) : (caderaAdelantada.x > caderaAtrasada.x);
 
+                    // Asignar fallas visuales específicas por lado según la guardia lateral
+                    if (!rodillaAtrasadaOk) {
+                        if (esIzq) fallas.derecho = true; else fallas.izquierdo = true;
+                    }
+                    if (!rodillaAdelantadaOk || !talonAdelantadoOk) {
+                        if (esIzq) fallas.izquierdo = true; else fallas.derecho = true;
+                    }
+                    if (!distanciaPiesOk || !caderaAlineadaOk) {
+                        fallas.distancia = true;
+                    }
+
+                    estadoApp.segmentosConFalla = fallas;
                     return (rodillaAtrasadaOk && rodillaAdelantadaOk && distanciaPiesOk && talonAdelantadoOk && caderaAlineadaOk);
                 }
             }
@@ -867,7 +934,6 @@
                     DOM.txtPrincipal.innerText = estadoApp.tiempoPrincipalRestante.toFixed(2);
                     DOM.txtPrincipal.style.color = (estadoApp.tiempoPrincipalRestante <= 5) ? CONFIG.color_error : CONFIG.color_primary;
 
-                    // AJUSTE FINO: Timer detenido (No hay postura) -> Color ROJO
                     DOM.txtRetencion.style.color = CONFIG.color_error; 
 
                     if (estadoApp.tiempoPrincipalRestante <= 0) {
@@ -880,7 +946,6 @@
                     estadoApp.tiempoRetencionAcumulado += delta;
                     DOM.txtRetencion.innerText = `${estadoApp.tiempoRetencionAcumulado.toFixed(1)}s / 5s`;
 
-                    // AJUSTE FINO: Timer avanzando (Postura correcta) -> Color VERDE
                     DOM.txtRetencion.style.color = "#33cc66"; 
 
                     if (estadoApp.tiempoRetencionAcumulado >= CONFIG.TIEMPO_RETENCION_REQUERIDO) {
@@ -903,10 +968,11 @@
             estadoApp.tiempoPrincipalRestante = CONFIG.TIEMPO_VENTANA_POSTURA;
             estadoApp.tiempoRetencionAcumulado = 0;
             estadoApp.posturaConectada = false;
+            estadoApp.segmentosConFalla = { izquierdo: false, derecho: false, distancia: false };
 
             DOM.txtTarget.innerText = estadoApp.posicionActual.nombre;
             DOM.txtRetencion.innerText = "0.0s / 5s";
-            DOM.txtRetencion.style.color = CONFIG.color_error; // Inicia detenido en rojo
+            DOM.txtRetencion.style.color = CONFIG.color_error;
             
             hablar(`${estadoApp.posicionActual.nombreAudio}`);
         }
@@ -972,28 +1038,44 @@
                         };
                     });
 
-                    ctx.lineWidth = 4;
-
-                    // Lado Izquierdo (Amarillo)
-                    dibujarLinea(ctx, dibujoNodos.left_hip, dibujoNodos.left_knee, CONFIG.color_left_node);
-                    dibujarLinea(ctx, dibujoNodos.left_knee, dibujoNodos.left_ankle, CONFIG.color_left_node);
-                    dibujarLinea(ctx, dibujoNodos.left_ankle, dibujoNodos.left_foot, CONFIG.color_left_node);
-
-                    // Lado Derecho (Celeste)
-                    dibujarLinea(ctx, dibujoNodos.right_hip, dibujoNodos.right_knee, CONFIG.color_right_node);
-                    dibujarLinea(ctx, dibujoNodos.right_knee, dibujoNodos.right_ankle, CONFIG.color_right_node);
-                    dibujarLinea(ctx, dibujoNodos.right_ankle, dibujoNodos.right_foot, CONFIG.color_right_node);
-
-                    Object.keys(dibujoNodos).forEach(key => {
-                        let colorNodo = key.startsWith('left') ? CONFIG.color_left_node : CONFIG.color_right_node;
-                        dibujarPunto(ctx, dibujoNodos[key].x, dibujoNodos[key].y, colorNodo);
-                    });
-
                     let pxEstatura = calcularDistancia2D(nodos.left_hip, nodos.left_ankle);
                     let factorEscala = pxEstatura / CONFIG.SUJETO_PRUEBA.TALON_A_CADERA;
 
+                    // Ejecutamos la evaluación para actualizar el estado de fallas antes de dibujar
                     let cumplePostura = estadoApp.posicionActual.evaluar(nodos, factorEscala);
 
+                    // AJUSTE FINO: Asignación dinámica de colores (Rojo en caso de falla)
+                    let colorIzquierdo = estadoApp.segmentosConFalla.izquierdo ? CONFIG.color_error : CONFIG.color_left_node;
+                    let colorDerecho = estadoApp.segmentosConFalla.derecho ? CONFIG.color_error : CONFIG.color_right_node;
+                    
+                    // Si el error es de distancia general o alineación de cadera, pintamos de rojo la base de conexión de ambos pies
+                    let colorBaseIzq = (estadoApp.segmentosConFalla.distancia || estadoApp.segmentosConFalla.izquierdo) ? CONFIG.color_error : CONFIG.color_left_node;
+                    let colorBaseDer = (estadoApp.segmentosConFalla.distancia || estadoApp.segmentosConFalla.derecho) ? CONFIG.color_error : CONFIG.color_right_node;
+
+                    ctx.lineWidth = 4;
+
+                    // Dibujo Lado Izquierdo
+                    dibujarLinea(ctx, dibujoNodos.left_hip, dibujoNodos.left_knee, colorIzquierdo);
+                    dibujarLinea(ctx, dibujoNodos.left_knee, dibujoNodos.left_ankle, colorIzquierdo);
+                    dibujarLinea(ctx, dibujoNodos.left_ankle, dibujoNodos.left_foot, colorBaseIzq);
+
+                    // Dibujo Lado Derecho
+                    dibujarLinea(ctx, dibujoNodos.right_hip, dibujoNodos.right_knee, colorDerecho);
+                    dibujarLinea(ctx, dibujoNodos.right_knee, dibujoNodos.right_ankle, colorDerecho);
+                    dibujarLinea(ctx, dibujoNodos.right_ankle, dibujoNodos.right_foot, colorBaseDer);
+
+                    // Dibujo de los puntos de las articulaciones con sus colores correspondientes corregidos
+                    Object.keys(dibujoNodos).forEach(key => {
+                        let colorPunto;
+                        if (key.startsWith('left')) {
+                            colorPunto = (key === 'left_foot' && estadoApp.segmentosConFalla.distancia) ? CONFIG.color_error : colorIzquierdo;
+                        } else {
+                            colorPunto = (key === 'right_foot' && estadoApp.segmentosConFalla.distancia) ? CONFIG.color_error : colorDerecho;
+                        }
+                        dibujarPunto(ctx, dibujoNodos[key].x, dibujoNodos[key].y, colorPunto);
+                    });
+
+                    // Control de transiciones de los temporizadores
                     if (cumplePostura && !estadoApp.posturaConectada) {
                         estadoApp.posturaConectada = true;
                         sonarBeep();
