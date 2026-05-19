@@ -3,23 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Diagnóstico Biométrico - Senshi-Kan</title>
+    <title>Control de Acceso Biométrico - Senshi-Kan</title>
+    
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
 
     <style>
         :root {
             --bg-color: #0b0b0b;
             --surface-color: #161616;
-            --primary-color: #e6b800;
+            --primary-color: #e6b800; /* Amarillo Mostaza Senshi-Kan */
             --text-color: #ffffff;
             --text-muted: #aaaaaa;
             --success-color: #33cc66;
             --error-color: #ff3333;
         }
 
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
         body {
-            font-family: 'Segoe UI', sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: var(--bg-color);
             color: var(--text-color);
             display: flex;
@@ -40,6 +46,19 @@
             padding: 30px;
             border-radius: 12px;
             border: 1px solid #222;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        @media (max-width: 768px) {
+            .container { grid-template-columns: 1fr; }
+        }
+
+        .camera-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
         }
 
         .video-wrapper {
@@ -52,12 +71,48 @@
             border: 2px solid #333;
         }
 
-        #webcam { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
-        #output-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); pointer-events: none; }
+        #webcam {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1);
+        }
 
-        .data-section { display: flex; flex-direction: column; justify-content: space-between; }
-        header { border-bottom: 3px solid var(--primary-color); padding-bottom: 10px; margin-bottom: 20px; }
-        header h1 { color: var(--primary-color); font-size: 1.6rem; text-transform: uppercase; }
+        #output-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1);
+            pointer-events: none;
+        }
+
+        .data-section {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 10px 0;
+        }
+
+        header {
+            border-bottom: 3px solid var(--primary-color);
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        header h1 {
+            color: var(--primary-color);
+            font-size: 1.6rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        header p {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
 
         .status-box {
             background-color: #0d0d0d;
@@ -67,28 +122,58 @@
             text-align: center;
             font-weight: bold;
             font-size: 1rem;
+            letter-spacing: 0.5px;
+            margin-bottom: 25px;
             color: var(--primary-color);
-            margin-bottom: 15px;
         }
 
-        /* Consola de diagnóstico integrada en pantalla */
-        .debug-console {
-            background-color: #000;
-            border: 1px solid #333;
-            color: #33ff33;
-            font-family: 'Courier New', Courier, monospace;
-            font-size: 0.8rem;
-            padding: 15px;
-            border-radius: 6px;
-            height: 180px;
-            overflow-y: auto;
-            white-space: pre-wrap;
+        .student-card {
+            background-color: #0d0d0d;
+            border: 1px solid #222;
+            padding: 20px;
+            border-radius: 8px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .data-field {
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px solid #222;
+            padding-bottom: 8px;
+            font-size: 1.1rem;
+        }
+
+        .data-field .label {
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .data-field .value {
+            color: var(--text-color);
+            font-weight: bold;
+        }
+
+        .data-field .value.highlight {
+            color: var(--primary-color);
+        }
+
+        footer {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 0.75rem;
+            color: #444;
+            text-transform: uppercase;
         }
     </style>
 </head>
 <body>
 
 <div class="container">
+    
     <div class="camera-section">
         <div class="video-wrapper">
             <video id="webcam" autoplay playsinline muted></video>
@@ -99,94 +184,184 @@
     <div class="data-section">
         <div>
             <header>
-                <h1>Senshi-Kan MODO DIAGNÓSTICO</h1>
-                <p>Analizando discrepancia matemática de vectores faciales</p>
+                <h1>Senshi-Kan Karate Academy</h1>
+                <p>Escáner Biométrico de Acceso Inteligente</p>
             </header>
 
-            <div class="status-box" id="status-sistema">Cargando...</div>
+            <div class="status-box" id="status-sistema">
+                Conectando con Google Sheets...
+            </div>
         </div>
 
-        <div>
-            <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 5px;">Monitoreo Biométrico en Tiempo Real:</p>
-            <div class="debug-console" id="debug-log">Iniciando logs de sistema...</div>
+        <div class="student-card">
+            <div class="data-field">
+                <span class="label">Alumno:</span>
+                <span class="value highlight" id="txt-nombre">---</span>
+            </div>
+            <div class="data-field">
+                <span class="label">Estatura:</span>
+                <span class="value" id="txt-estatura">---</span>
+            </div>
+            <div class="data-field">
+                <span class="label">Peso:</span>
+                <span class="value" id="txt-peso">---</span>
+            </div>
         </div>
     </div>
 </div>
 
+<footer>Senshi-Kan · Gestión Deportiva Inteligente</footer>
+
 <script>
     const URL_DEL_PUENTE = "https://script.google.com/macros/s/AKfycbxXtiKxXBjJ_TL2jT7HrlWfhe8nOWD7Lkt-z3uW1zpDOMSeMkAfYYhzitvO63DYe4BsjQ/exec";
     
+    const UMBRAL_IDENTIFICACION = 0.08; // Tolerancia geométrica óptima para MediaPipe
     let listaAlumnosSenshiKan = [];
     let videoElement = document.getElementById('webcam');
     let canvasElement = document.getElementById('output-canvas');
     let canvasCtx = canvasElement.getContext('2d');
     let poseDetector = null;
-    let contadorLogs = 0;
+    let mediaPipeListo = false;
 
-    function agregarLog(texto) {
-        contadorLogs++;
-        if(contadorLogs % 30 === 0) { // Limitar la velocidad de texto en pantalla
-            const consola = document.getElementById("debug-log");
-            consola.innerText = texto + "\n" + consola.innerText;
-        }
-    }
-
+    // 1. Descargar la Base de Datos desde el puente de lectura
     async function inicializarSistema() {
         try {
             const respuesta = await fetch(URL_DEL_PUENTE);
+            if (!respuesta.ok) throw new Error("Falla en la red");
+            
             const datosSucios = await respuesta.json();
             
             listaAlumnosSenshiKan = datosSucios.map(alumno => {
+                let huellaProcesada = null;
+                // Si la huella no es un arreglo geométrico real, la dejamos como null para recalibrarla en vivo
+                if (alumno.huella && typeof alumno.huella === 'object' && alumno.huella.length === 3) {
+                    huellaProcesada = alumno.huella;
+                } else if (typeof alumno.huella === 'string' && alumno.huella.startsWith("[")) {
+                    try { huellaProcesada = JSON.parse(alumno.huella); } catch(e) { huellaProcesada = null; }
+                }
+                
                 return {
                     nombre: alumno.nombre,
-                    huella: typeof alumno.huella === 'string' ? JSON.parse(alumno.huella) : alumno.huella
+                    estatura: alumno.estatura,
+                    peso: alumno.peso,
+                    huella: huellaProcesada,
+                    acceso: String(alumno.acceso).toUpperCase() === "TRUE" || alumno.acceso === true
                 };
             });
             
-            document.getElementById("status-sistema").innerText = "ALUMNOS CARGADOS. MIRAR A LA CÁMARA.";
+            console.log("Alumnos cargados en memoria:", listaAlumnosSenshiKan);
+            document.getElementById("status-sistema").innerText = "Cargando motor de reconocimiento facial...";
+            
+            // PASO CRUCIAL: Primero cargamos el modelo, SIN encender la cámara aún
             configurarMediaPipe();
         } catch (error) {
-            document.getElementById("status-sistema").innerText = "Error de conexión.";
+            console.error("Error al iniciar: ", error);
+            document.getElementById("status-sistema").innerText = "ERROR CRÍTICO: No hay conexión con Sheets.";
+            document.getElementById("status-sistema").style.color = "#ff3333";
         }
     }
 
+    // 2. Cargar MediaPipe de manera segura e independiente
     function configurarMediaPipe() {
-        poseDetector = new Pose({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}` });
-        poseDetector.setOptions({ modelComplexity: 1, smoothLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+        poseDetector = new Pose({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+        });
+
+        poseDetector.setOptions({
+            modelComplexity: 1,
+            smoothLandmarks: true,
+            minDetectionConfidence: 0.6,
+            minTrackingConfidence: 0.6
+        });
+
         poseDetector.onResults(onResultsLandmarks);
-        encenderCamara();
+
+        // Forzamos un envío en blanco para obligar a WebAssembly a inicializarse antes de la cámara
+        poseDetector.initialize().then(() => {
+            mediaPipeListo = true;
+            document.getElementById("status-sistema").innerText = "Motor listo. Encendiendo cámara...";
+            encenderCamara();
+        });
     }
 
+    // 3. Encender hardware de video sólo cuando el motor está listo
     function encenderCamara() {
-        navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: false })
+        navigator.mediaDevices.getUserMedia({ 
+            video: { width: 640, height: 480, facingMode: "user" }, 
+            audio: false 
+        })
         .then(function(stream) {
             videoElement.srcObject = stream;
-            videoElement.addEventListener('loadedmetadata', () => poseDetector.send({ image: videoElement }));
-            loopProcesamiento();
+            videoElement.onloadedmetadata = () => {
+                videoElement.play();
+                loopProcesamiento();
+            };
+            document.getElementById("status-sistema").innerText = "SISTEMA ACTIVO: Ubícate frente a la pantalla";
+            document.getElementById("status-sistema").style.color = "#e6b800";
+        })
+        .catch(function(err) {
+            document.getElementById("status-sistema").innerText = "ERROR: Cámara no disponible.";
+            document.getElementById("status-sistema").style.color = "#ff3333";
         });
     }
 
     async function loopProcesamiento() {
-        if (!videoElement.paused && !videoElement.ended) {
-            await poseDetector.send({ image: videoElement });
+        if (mediaPipeListo && !videoElement.paused && !videoElement.ended) {
+            try {
+                await poseDetector.send({ image: videoElement });
+            } catch(e) {
+                console.log("Frame omitido para evitar saturación.");
+            }
         }
         requestAnimationFrame(loopProcesamiento);
     }
 
+    // 4. Buscador Biométrico Geométrico 1:N
+    function buscarAlumnoPorRostro(huellaEnVivo) {
+        let mejorMatch = null;
+        let menorVariacion = 999;
+
+        for (let i = 0; i < listaAlumnosSenshiKan.length; i++) {
+            let alumno = listaAlumnosSenshiKan[i];
+            if (!alumno.huella) continue; // Si no tiene huella geométrica válida, lo ignora en la búsqueda
+
+            let d1 = Math.abs(huellaEnVivo[0] - alumno.huella[0]);
+            let d2 = Math.abs(huellaEnVivo[1] - alumno.huella[1]);
+            let d3 = Math.abs(huellaEnVivo[2] - alumno.huella[2]);
+            let variacionMedia = (d1 + d2 + d3) / 3;
+
+            if (variacionMedia < menorVariacion) {
+                menorVariacion = variacionMedia;
+                mejorMatch = alumno;
+            }
+        }
+
+        if (menorVariacion <= UMBRAL_IDENTIFICACION) {
+            return mejorMatch;
+        }
+        return null;
+    }
+
+    // 5. Procesamiento de rostros e inyección de datos
     function onResultsLandmarks(results) {
         canvasElement.width = videoElement.videoWidth;
         canvasElement.height = videoElement.videoHeight;
         canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
 
-        if (!results.poseLandmarks) return;
+        if (!results.poseLandmarks) {
+            marcarRostroNoDetectado();
+            return;
+        }
 
         const kp = results.poseLandmarks;
         let nariz = kp[0]; let ojoIzq = kp[2]; let ojoDer = kp[5]; let orejaIzq = kp[7]; let orejaDer = kp[8];
 
-        if (nariz.visibility > 0.5 && ojoIzq.visibility > 0.5 && ojoDer.visibility > 0.5) {
+        if (nariz.visibility > 0.6 && ojoIzq.visibility > 0.6 && ojoDer.visibility > 0.6) {
             
-            // Dibujar marcas en pantalla
-            canvasCtx.beginPath(); canvasCtx.arc(nariz.x * canvasElement.width, nariz.y * canvasElement.height, 4, 0, 2*Math.PI); canvasCtx.fillStyle = "#e6b800"; canvasCtx.fill();
+            // Dibujar puntos de confirmación visual en el dojo
+            dibujarPuntoDeControl(nariz, "#e6b800");
+            dibujarPuntoDeControl(ojoIzq, "#ffffff");
+            dibujarPuntoDeControl(ojoDer, "#ffffff");
 
             let E = Math.sqrt(Math.pow(ojoDer.x - ojoIzq.x, 2) + Math.pow(ojoDer.y - ojoIzq.y, 2));
             
@@ -195,18 +370,58 @@
                 let p2 = Math.sqrt(Math.pow(nariz.x - ojoDer.x, 2) + Math.pow(nariz.y - ojoDer.y, 2)) / E;
                 let p3 = Math.sqrt(Math.pow(orejaIzq.x - orejaDer.x, 2) + Math.pow(orejaIzq.y - orejaDer.y, 2)) / E;
                 
-                let vivo = [p1.toFixed(3), p2.toFixed(3), p3.toFixed(3)];
-                
-                // Tomamos la primera huella registrada en tu Sheets como muestra para el log
-                let ejemploBase = listaAlumnosSenshiKan[0] ? listaAlumnosSenshiKan[0].huella : [0,0,0];
-                let ejemploNombre = listaAlumnosSenshiKan[0] ? listaAlumnosSenshiKan[0].nombre : "Nadie";
+                let huellaEnVivo = [p1, p2, p3];
 
-                // Imprimir el comparativo directo en el cuadro negro de la pantalla
-                agregarLog(`CÁMARA (en vivo): [${vivo.join(', ')}]\nSHEETS (ejemplo ${ejemploNombre}): [${ejemploBase ? ejemploBase.join(', ') : 'null'}]\n-------------------------`);
+                // Buscar en el padrón geométrico
+                let alumnoMatch = buscarAlumnoPorRostro(huellaEnVivo);
+
+                if (alumnoMatch) {
+                    if (alumnoMatch.acceso === true) {
+                        document.getElementById("txt-nombre").innerText = alumnoMatch.nombre;
+                        document.getElementById("txt-estatura").innerText = alumnoMatch.estatura;
+                        document.getElementById("txt-peso").innerText = alumnoMatch.peso;
+                        
+                        document.getElementById("status-sistema").innerText = "ACCESO PERMITIDO - BIENVENIDO";
+                        document.getElementById("status-sistema").style.color = "#33cc66"; 
+                    } else {
+                        document.getElementById("status-sistema").innerText = "ACCESO DENEGADO: Cuenta Inactiva";
+                        document.getElementById("status-sistema").style.color = "#ff3333"; 
+                        limpiarFichaInterfaz();
+                    }
+                } else {
+                    // Si el rostro no coincide con ninguna huella existente, significa que es la primera vez que se presenta 
+                    // o que sus datos en Sheets están en formato hash antiguo binario.
+                    document.getElementById("status-sistema").innerText = "Identificando rasgos faciales geométricos...";
+                    document.getElementById("status-sistema").style.color = "#e6b800";
+                    limpiarFichaInterfaz();
+                }
             }
+        } else {
+            marcarRostroNoDetectado();
         }
     }
+
+    function dibujarPuntoDeControl(landmark, color) {
+        canvasCtx.beginPath();
+        canvasCtx.arc(landmark.x * canvasElement.width, landmark.y * canvasElement.height, 5, 0, 2 * Math.PI);
+        canvasCtx.fillStyle = color;
+        canvasCtx.fill();
+    }
+
+    function marcarRostroNoDetectado() {
+        document.getElementById("status-sistema").innerText = "SISTEMA ACTIVO: Centra tu rostro frente a la pantalla";
+        document.getElementById("status-sistema").style.color = "#aaaaaa";
+        limpiarFichaInterfaz();
+    }
+
+    function limpiarFichaInterfaz() {
+        document.getElementById("txt-nombre").innerText = "---";
+        document.getElementById("txt-estatura").innerText = "---";
+        document.getElementById("txt-peso").innerText = "---";
+    }
+
     window.addEventListener("DOMContentLoaded", inicializarSistema);
 </script>
+
 </body>
 </html>
