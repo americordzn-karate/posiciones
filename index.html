@@ -279,7 +279,7 @@
             color: var(--color-primary);
             text-transform: uppercase;
             letter-spacing: 1px;
-        }
+            }
 
         .modal-results {
             display: none;
@@ -496,7 +496,7 @@
             pruebaActiva: false,
             posturaConectada: false,
             intervaloMaestro: null,
-            segmentosConFalla: {} // Guarda qué partes del cuerpo están mal en tiempo real
+            segmentosConFalla: {} 
         };
 
         let AudioCtx = null;
@@ -707,36 +707,42 @@
                     let fallas = { izquierdo: false, derecho: false, distancia: false };
                     let esIzq = (estadoApp.guardia === "izquierdo");
                     
+                    // CORRECCIÓN DE ENRUTAMIENTO DE NODOS DINÁMICOS LATERALES
                     let caderaAtrasada = esIzq ? nodos.right_hip : nodos.left_hip;
                     let rodillaAtrasada = esIzq ? nodos.right_knee : nodos.left_knee;
                     let tobilloAtrasado = esIzq ? nodos.right_ankle : nodos.left_ankle;
                     
                     let caderaAdelantada = esIzq ? nodos.left_hip : nodos.right_hip;
-                    let rodillaAdelantada = esIzq ? nodos.left_knee : nodos.right_knee;
-                    let tobilloAdelantado = esIzq ? nodos.right_ankle : nodos.right_ankle;
+                    let rodillaAdelantada = esIzq ? nodos.left_knee : nodos.right_knee; // CORREGIDO: Evita duplicidad de left_knee en guardia derecha
+                    let tobilloAdelantado = esIzq ? nodos.left_ankle : nodos.right_ankle;
+                    
                     let pieAdelantado = esIzq ? nodos.left_foot : nodos.right_foot;
                     let pieAtrasado = esIzq ? nodos.right_foot : nodos.left_foot;
 
+                    // 1. Flexión Pierna Trasera (Carga del 90% del peso) -> ~150 grados
                     let anguloRodillaAtrasada = calcularAngulo(caderaAtrasada, rodillaAtrasada, tobilloAtrasado);
                     let rodillaAtrasadaOk = verificarRango(anguloRodillaAtrasada, 150, 150 * CONFIG.TOLERANCIA_PORCENTAJE);
 
+                    // 2. Flexión Pierna Delantera (Soporte leve) -> ~130 grados
                     let anguloRodillaAdelantada = calcularAngulo(caderaAdelantada, rodillaAdelantada, tobilloAdelantado);
                     let rodillaAdelantadaOk = verificarRango(anguloRodillaAdelantada, 130, 130 * CONFIG.TOLERANCIA_PORCENTAJE);
 
+                    // 3. Distancia métrica entre puntas (Ajustada a 24 cm exactos)
                     let distEntrePuntas = calcularDistancia2D(pieAdelantado, pieAtrasado);
                     let distEsperadaPx = 24 * factorEscala;
                     let distanciaPiesOk = verificarRango(distEntrePuntas, distEsperadaPx, distEsperadaPx * CONFIG.TOLERANCIA_PORCENTAJE);
 
-                    let anguloTalonAdelantado = calcularAngulo(caderaAdelantada, tobilloAdelantado, pieAdelantado);
-                    let talonAdelantadoOk = verificarRango(anguloTalonAdelantado, 145, 15);
+                    // 4. Talón adelantado elevado (Koski): El tobillo delantero debe estar más alto en pantalla (Y menor) que la punta del pie
+                    let talónElevadoOk = (tobilloAdelantado.y < pieAdelantado.y - (3 * factorEscala));
 
+                    // 5. Proyección y alineación espacial en el plano x
                     let caderaAlineadaOk = esIzq ? (caderaAdelantada.x < caderaAtrasada.x) : (caderaAdelantada.x > caderaAtrasada.x);
 
-                    // Asignar fallas visuales específicas por lado según la guardia lateral
+                    // Asignación de errores gráficos interactivos por segmento
                     if (!rodillaAtrasadaOk) {
                         if (esIzq) fallas.derecho = true; else fallas.izquierdo = true;
                     }
-                    if (!rodillaAdelantadaOk || !talonAdelantadoOk) {
+                    if (!rodillaAdelantadaOk || !talónElevadoOk) {
                         if (esIzq) fallas.izquierdo = true; else fallas.derecho = true;
                     }
                     if (!distanciaPiesOk || !caderaAlineadaOk) {
@@ -744,7 +750,7 @@
                     }
 
                     estadoApp.segmentosConFalla = fallas;
-                    return (rodillaAtrasadaOk && rodillaAdelantadaOk && distanciaPiesOk && talonAdelantadoOk && caderaAlineadaOk);
+                    return (rodillaAtrasadaOk && rodillaAdelantadaOk && distanciaPiesOk && talónElevadoOk && caderaAlineadaOk);
                 }
             }
         ];
@@ -1041,30 +1047,29 @@
                     let pxEstatura = calcularDistancia2D(nodos.left_hip, nodos.left_ankle);
                     let factorEscala = pxEstatura / CONFIG.SUJETO_PRUEBA.TALON_A_CADERA;
 
-                    // Ejecutamos la evaluación para actualizar el estado de fallas antes de dibujar
+                    // Ejecución matemática de la postura activa
                     let cumplePostura = estadoApp.posicionActual.evaluar(nodos, factorEscala);
 
-                    // AJUSTE FINO: Asignación dinámica de colores (Rojo en caso de falla)
+                    // Mapeo dinámico de colores en base a fallas particulares en vivo
                     let colorIzquierdo = estadoApp.segmentosConFalla.izquierdo ? CONFIG.color_error : CONFIG.color_left_node;
                     let colorDerecho = estadoApp.segmentosConFalla.derecho ? CONFIG.color_error : CONFIG.color_right_node;
                     
-                    // Si el error es de distancia general o alineación de cadera, pintamos de rojo la base de conexión de ambos pies
                     let colorBaseIzq = (estadoApp.segmentosConFalla.distancia || estadoApp.segmentosConFalla.izquierdo) ? CONFIG.color_error : CONFIG.color_left_node;
                     let colorBaseDer = (estadoApp.segmentosConFalla.distancia || estadoApp.segmentosConFalla.derecho) ? CONFIG.color_error : CONFIG.color_right_node;
 
                     ctx.lineWidth = 4;
 
-                    // Dibujo Lado Izquierdo
+                    // Dibujo Lado Izquierdo (Estructura de pierna)
                     dibujarLinea(ctx, dibujoNodos.left_hip, dibujoNodos.left_knee, colorIzquierdo);
                     dibujarLinea(ctx, dibujoNodos.left_knee, dibujoNodos.left_ankle, colorIzquierdo);
                     dibujarLinea(ctx, dibujoNodos.left_ankle, dibujoNodos.left_foot, colorBaseIzq);
 
-                    // Dibujo Lado Derecho
+                    // Dibujo Lado Derecho (Estructura de pierna)
                     dibujarLinea(ctx, dibujoNodos.right_hip, dibujoNodos.right_knee, colorDerecho);
                     dibujarLinea(ctx, dibujoNodos.right_knee, dibujoNodos.right_ankle, colorDerecho);
                     dibujarLinea(ctx, dibujoNodos.right_ankle, dibujoNodos.right_foot, colorBaseDer);
 
-                    // Dibujo de los puntos de las articulaciones con sus colores correspondientes corregidos
+                    // Dibujo de nodos articulares corregidos en vivo
                     Object.keys(dibujoNodos).forEach(key => {
                         let colorPunto;
                         if (key.startsWith('left')) {
@@ -1075,7 +1080,7 @@
                         dibujarPunto(ctx, dibujoNodos[key].x, dibujoNodos[key].y, colorPunto);
                     });
 
-                    // Control de transiciones de los temporizadores
+                    // Transición y control de motores de sonido
                     if (cumplePostura && !estadoApp.posturaConectada) {
                         estadoApp.posturaConectada = true;
                         sonarBeep();
