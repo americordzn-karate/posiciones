@@ -6,15 +6,16 @@
     <script defer src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
     <style>
-        body { background: #0b0b0b; color: white; font-family: sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+        body { background: #0b0b0b; color: white; font-family: sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
         .container { width: 90%; max-width: 1000px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; background: #161616; padding: 30px; border-radius: 12px; }
         video, canvas { width: 100%; border-radius: 8px; transform: scaleX(-1); }
+        #status { color: #e6b800; font-weight: bold; margin-top: 10px; }
     </style>
 </head>
 <body>
 <div class="container">
     <div><video id="webcam" autoplay playsinline muted></video><canvas id="output-canvas"></canvas></div>
-    <div id="info"><h1>Senshi-Kan</h1><div id="status">Sincronizando...</div></div>
+    <div id="info"><h1>Senshi-Kan</h1><div id="status">Iniciando...</div></div>
 </div>
 
 <script>
@@ -22,34 +23,52 @@
     const video = document.getElementById('webcam');
     
     async function inicializar() {
-        const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
-        await Promise.all([faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL), faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL), faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)]);
-        
-        const res = await fetch(URL_DEL_PUENTE);
-        const alumnos = await res.json();
-        const descriptores = [];
+        const status = document.getElementById("status");
+        try {
+            status.innerText = "Cargando IA...";
+            const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
+            await Promise.all([faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL), faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL), faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)]);
+            
+            const res = await fetch(URL_DEL_PUENTE);
+            const alumnos = await res.json();
+            const descriptores = [];
 
-        for (let al of alumnos) {
-            // Se entrena la IA usando el nombre de archivo de la columna J
-            const img = await faceapi.fetchImage(`https://docs.google.com/uc?export=view&id=${al.rutaFoto.split('/').pop()}`);
-            const det = await faceapi.detectSingleFace(img, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
-            if (det) descriptores.push(new faceapi.LabeledFaceDescriptors(`${al.nombre}|${al.estatura}|${al.peso}`, [det.descriptor]));
-        }
-        
-        const matcher = new faceapi.FaceMatcher(descriptores, 0.5);
-        document.getElementById("status").innerText = "SISTEMA ACTIVO";
-        navigator.mediaDevices.getUserMedia({ video: true }).then(s => video.srcObject = s);
-        
-        setInterval(async () => {
-            const det = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
-            if (det) {
-                const match = matcher.findBestMatch(det.descriptor);
-                if (match.label !== 'unknown') {
-                    const [n, e, p] = match.label.split("|");
-                    document.getElementById("status").innerHTML = `Alumno: ${n}<br>Estatura: ${e}<br>Peso: ${p}`;
-                }
+            for (let al of alumnos) {
+                // PROTECCIÓN: Solo intentamos procesar si hay ruta válida
+                if (!al.rutaFoto) continue;
+                
+                const idFoto = al.rutaFoto.includes('/') ? al.rutaFoto.split('/').pop() : al.rutaFoto;
+                const imgUrl = `https://docs.google.com/uc?export=view&id=${idFoto}`;
+                
+                try {
+                    const img = await faceapi.fetchImage(imgUrl);
+                    const det = await faceapi.detectSingleFace(img, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
+                    if (det) {
+                        descriptores.push(new faceapi.LabeledFaceDescriptors(`${al.nombre}|${al.estatura}|${al.peso}`, [det.descriptor]));
+                    }
+                } catch(err) { console.warn("No se pudo cargar foto de: " + al.nombre); }
             }
-        }, 1000);
+            
+            if (descriptores.length === 0) throw new Error("No se encontraron rostros válidos.");
+            
+            const matcher = new faceapi.FaceMatcher(descriptores, 0.5);
+            status.innerText = "SISTEMA ACTIVO: Buscando alumno...";
+            navigator.mediaDevices.getUserMedia({ video: true }).then(s => video.srcObject = s);
+            
+            setInterval(async () => {
+                const det = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
+                if (det) {
+                    const match = matcher.findBestMatch(det.descriptor);
+                    if (match.label !== 'unknown') {
+                        const [n, e, p] = match.label.split("|");
+                        status.innerHTML = `Atleta: ${n}<br>Estatura: ${e}<br>Peso: ${p}`;
+                    }
+                }
+            }, 1000);
+            
+        } catch(e) {
+            status.innerText = "Error: " + e.message;
+        }
     }
     window.onload = inicializar;
 </script>
