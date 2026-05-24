@@ -483,6 +483,9 @@
         let estadoApp = {
             nombreAlumno: "",
             estaturaAlumno: 174,
+            retoNombre: "",        // ← AGREGAR
+    edadAlumno: 0,         // ← AGREGAR
+    pesoAlumno: 0,         // ← AGREGAR
             guardia: "izquierdo",
             camaraSeleccionada: "user",
             modoTextoActual: "Principiante", 
@@ -811,15 +814,45 @@
         };
 
         window.addEventListener('DOMContentLoaded', () => {
-            let nombreGuardado = localStorage.getItem('senshikan_last_student');
-            if (nombreGuardado) {
-                document.getElementById('input-name').value = nombreGuardado;
-            }
-            let estaturaGuardada = localStorage.getItem('senshikan_last_height');
-            if (estaturaGuardada) {
-                document.getElementById('input-height').value = estaturaGuardada;
-            }
-        });
+    const params = new URLSearchParams(window.location.search);
+
+    const urlNombre   = params.get('nombre');
+    const urlEstatura = params.get('estatura');
+    const urlReto     = params.get('reto');
+    const urlEdad     = params.get('edad');
+    const urlPeso     = params.get('peso');
+
+    if (urlNombre) {
+        estadoApp.nombreAlumno  = urlNombre.trim();
+        estadoApp.retoNombre    = urlReto   ? urlReto.trim()        : "EVALUAR POSICIONES";
+        estadoApp.edadAlumno    = urlEdad   ? parseInt(urlEdad)     : 0;
+        estadoApp.pesoAlumno    = urlPeso   ? parseFloat(urlPeso)   : 0;
+
+        const inputNombre   = document.getElementById('input-name');
+        const inputEstatura = document.getElementById('input-height');
+
+        inputNombre.value       = estadoApp.nombreAlumno;
+        inputNombre.readOnly    = true;
+        inputNombre.style.backgroundColor = "#111";
+        inputNombre.style.color           = "#aaaaaa";
+        inputNombre.style.cursor          = "not-allowed";
+
+        if (urlEstatura) {
+            estadoApp.estaturaAlumno  = parseFloat(urlEstatura);
+            inputEstatura.value       = urlEstatura;
+            inputEstatura.readOnly    = true;
+            inputEstatura.style.backgroundColor = "#111";
+            inputEstatura.style.color           = "#aaaaaa";
+            inputEstatura.style.cursor          = "not-allowed";
+        }
+    } else {
+        // Fallback: si no hay URL, usa localStorage como antes
+        let nombreGuardado = localStorage.getItem('senshikan_last_student');
+        if (nombreGuardado) document.getElementById('input-name').value = nombreGuardado;
+        let estaturaGuardada = localStorage.getItem('senshikan_last_height');
+        if (estaturaGuardada) document.getElementById('input-height').value = estaturaGuardada;
+    }
+});
 
         DOM.btnStart.addEventListener('click', iniciarFlujoEvaluacion);
         
@@ -836,15 +869,18 @@
         });
 
         async function iniciarFlujoEvaluacion() {
-            inicializarAudio();
-            
-            estadoApp.nombreAlumno = DOM.setupPanel.querySelector('#input-name').value.trim() || "Alumno";
-            estadoApp.estaturaAlumno = parseFloat(DOM.setupPanel.querySelector('#input-height').value) || 174;
-            estadoApp.guardia = DOM.setupPanel.querySelector('#select-guard').value;
-            estadoApp.camaraSeleccionada = DOM.setupPanel.querySelector('#select-camera').value;
+    inicializarAudio();
 
-            localStorage.setItem('senshikan_last_student', estadoApp.nombreAlumno);
-            localStorage.setItem('senshikan_last_height', DOM.setupPanel.querySelector('#input-height').value.trim());
+    // Si no vienen datos de URL, los leemos del formulario como antes
+    if (!estadoApp.nombreAlumno) {
+        estadoApp.nombreAlumno   = DOM.setupPanel.querySelector('#input-name').value.trim() || "Alumno";
+        estadoApp.estaturaAlumno = parseFloat(DOM.setupPanel.querySelector('#input-height').value) || 174;
+        localStorage.setItem('senshikan_last_student', estadoApp.nombreAlumno);
+        localStorage.setItem('senshikan_last_height', estadoApp.estaturaAlumno.toString());
+    }
+
+    estadoApp.guardia            = DOM.setupPanel.querySelector('#select-guard').value;
+    estadoApp.camaraSeleccionada = DOM.setupPanel.querySelector('#select-camera').value;
 
             if (estadoApp.camaraSeleccionada === "user") {
                 DOM.videoContainer.classList.add('mirror');
