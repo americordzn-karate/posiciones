@@ -467,7 +467,7 @@
     display: none;">
 </div>
 <div class="slogan">ACADEMIA DE KARATE SENSHI-KAN<br>"VENCE TUS LÍMITES"</div>
-<button class="btn" style="margin-top: 15px;" id="btn-restart-app">Reiniciar Prueba</button>
+<button class="btn" style="margin-top: 15px;" id="btn-restart-app">Volver al Portal</button>
         </div>
     </div>
 
@@ -876,16 +876,15 @@
         DOM.btnStart.addEventListener('click', iniciarFlujoEvaluacion);
         
         DOM.btnRestartApp.addEventListener('click', () => {
-            let actualNombre = DOM.setupPanel.querySelector('#input-name').value.trim();
-            if (actualNombre) {
-                localStorage.setItem('senshikan_last_student', actualNombre);
-            }
-            let actualEstatura = DOM.setupPanel.querySelector('#input-height').value.trim();
-            if (actualEstatura) {
-                localStorage.setItem('senshikan_last_height', actualEstatura);
-            }
-            window.location.reload();
-        });
+    const params = new URLSearchParams({
+        nombre:   estadoApp.nombreAlumno,
+        edad:     estadoApp.edadAlumno,
+        reto:     estadoApp.retoNombre || "EVALUAR POSICIONES",
+        estatura: estadoApp.estaturaAlumno,
+        peso:     estadoApp.pesoAlumno
+    });
+    window.location.href = `https://americordzn-karate.github.io/retos/?${params.toString()}`;
+});
 
         async function iniciarFlujoEvaluacion() {
     inicializarAudio();
