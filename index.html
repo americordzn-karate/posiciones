@@ -752,25 +752,19 @@
                     let distEsperadaPx = 24 * factorEscala;
                     let distanciaPiesOk = verificarRango(distEntrePuntas, distEsperadaPx, distEsperadaPx * CONFIG.TOLERANCIA_PORCENTAJE);
 
-                    // 4. Talón adelantado elevado (Koski): El tobillo delantero debe estar más alto en pantalla (Y menor) que la punta del pie
-                    let talónElevadoOk = (tobilloAdelantado.y < pieAdelantado.y - (3 * factorEscala));
-
-                    // 5. Proyección y alineación espacial en el plano x
-                    let caderaAlineadaOk = esIzq ? (caderaAdelantada.x < caderaAtrasada.x) : (caderaAdelantada.x > caderaAtrasada.x);
-
-                    // Asignación de errores gráficos interactivos por segmento
+                   // Asignación de errores gráficos interactivos por segmento
                     if (!rodillaAtrasadaOk) {
                         if (esIzq) fallas.derecho = true; else fallas.izquierdo = true;
                     }
-                    if (!rodillaAdelantadaOk || !talónElevadoOk) {
+                    if (!rodillaAdelantadaOk) {
                         if (esIzq) fallas.izquierdo = true; else fallas.derecho = true;
                     }
-                    if (!distanciaPiesOk || !caderaAlineadaOk) {
+                    if (!distanciaPiesOk) {
                         fallas.distancia = true;
                     }
 
                     estadoApp.segmentosConFalla = fallas;
-                    return (rodillaAtrasadaOk && rodillaAdelantadaOk && distanciaPiesOk && talónElevadoOk && caderaAlineadaOk);
+                    return (rodillaAtrasadaOk && rodillaAdelantadaOk && distanciaPiesOk);
                 }
             }
         ];
