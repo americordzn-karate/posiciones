@@ -1069,7 +1069,7 @@ DOM.resMode.innerText = `MODO: ${estadoApp.modoTextoActual}`;
         enviarResultadoASheets();
     }
 
-    async function enviarResultadoASheets() {
+    function enviarResultadoASheets() {
         const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbwX5w8iiwkJVbGtpz-5f20U9jue2MC0vouE3blkHXo9CIMqg9bvCZrAYE8WKxH4gXGWzg/exec";
 
         DOM.resEnvio.style.display = "block";
@@ -1078,24 +1078,49 @@ DOM.resMode.innerText = `MODO: ${estadoApp.modoTextoActual}`;
         DOM.resEnvio.style.border = "1px solid #e6b800";
         DOM.resEnvio.innerText = "⏳ Guardando resultado...";
 
-        const payload = {
-            nombre_alumno: estadoApp.nombreAlumno,
-            nombre_reto:   estadoApp.retoNombre || "EVALUAR POSICIONES",
-            puntos:        estadoApp.puntosFinales
-        };
-
         try {
-            await fetch(URL_SCRIPT, {
-                method: "POST",
-                mode: "no-cors",
-                headers: { "Content-Type": "text/plain" },
-                body: JSON.stringify(payload)
+            // Crear iframe oculto como destino del formulario
+            const iframe = document.createElement('iframe');
+            iframe.name = "iframe_envio";
+            iframe.style.display = "none";
+            document.body.appendChild(iframe);
+
+            // Crear formulario oculto
+            const form = document.createElement('form');
+            form.method = "POST";
+            form.action = URL_SCRIPT;
+            form.target = "iframe_envio";
+            form.style.display = "none";
+
+            // Agregar campos
+            const campos = {
+                nombre_alumno: estadoApp.nombreAlumno,
+                nombre_reto:   estadoApp.retoNombre || "EVALUAR POSICIONES",
+                puntos:        estadoApp.puntosFinales
+            };
+
+            Object.keys(campos).forEach(key => {
+                const input = document.createElement('input');
+                input.type  = "hidden";
+                input.name  = key;
+                input.value = campos[key];
+                form.appendChild(input);
             });
 
-            DOM.resEnvio.style.backgroundColor = "#001a00";
-            DOM.resEnvio.style.color = "#33cc66";
-            DOM.resEnvio.style.border = "1px solid #33cc66";
-            DOM.resEnvio.innerText = "✅ Resultado guardado correctamente";
+            document.body.appendChild(form);
+            form.submit();
+
+            // Confirmar éxito tras el envío
+            setTimeout(() => {
+                DOM.resEnvio.style.backgroundColor = "#001a00";
+                DOM.resEnvio.style.color = "#33cc66";
+                DOM.resEnvio.style.border = "1px solid #33cc66";
+                DOM.resEnvio.innerText = "✅ Resultado guardado correctamente";
+
+                // Limpiar elementos temporales
+                document.body.removeChild(form);
+                document.body.removeChild(iframe);
+            }, 2500);
 
         } catch (error) {
             DOM.resEnvio.style.backgroundColor = "#1a0000";
