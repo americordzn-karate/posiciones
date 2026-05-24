@@ -457,8 +457,17 @@
                 </table>
             </div>
 
-            <div class="slogan">ACADEMIA DE KARATE SENSHI-KAN<br>"VENCE TUS LÍMITES"</div>
-            <button class="btn" style="margin-top: 15px;" id="btn-restart-app">Reiniciar Prueba</button>
+            <div id="res-envio" style="
+    text-align: center;
+    margin: 12px 0 4px 0;
+    font-size: 0.85rem;
+    font-weight: bold;
+    padding: 8px;
+    border-radius: 4px;
+    display: none;">
+</div>
+<div class="slogan">ACADEMIA DE KARATE SENSHI-KAN<br>"VENCE TUS LÍMITES"</div>
+<button class="btn" style="margin-top: 15px;" id="btn-restart-app">Reiniciar Prueba</button>
         </div>
     </div>
 
@@ -817,6 +826,7 @@
             resTotalLogradas: document.getElementById('res-total-logradas'),
             resTableBody: document.getElementById('res-table-body'),
             resPuntos: document.getElementById('res-puntos'),     // ← AGREGAR
+            resEnvio: document.getElementById('res-envio'),     // ← AGREGAR
             video: document.getElementById('webcam'),
             canvas: document.getElementById('output-canvas'),
             btnRestartApp: document.getElementById('btn-restart-app')
@@ -1054,8 +1064,51 @@ DOM.resMode.innerText = `MODO: ${estadoApp.modoTextoActual}`;
             DOM.modalResults.style.display = 'flex';
 
             let locucionFinal = `Prueba finalizada en modo ${estadoApp.modoTextoActual}. Aquí tienes tu resultado, ${estadoApp.nombreAlumno}. Obtuviste una calificación de ${calificacionFinal}.`;
-            hablar(locucionFinal);
+        hablar(locucionFinal);
+
+        enviarResultadoASheets();
+    }
+
+    async function enviarResultadoASheets() {
+        const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbwX5w8iiwkJVbGtpz-5f20U9jue2MC0vouE3blkHXo9CIMqg9bvCZrAYE8WKxH4gXGWzg/exec";
+
+        DOM.resEnvio.style.display = "block";
+        DOM.resEnvio.style.backgroundColor = "#1a1a00";
+        DOM.resEnvio.style.color = "#e6b800";
+        DOM.resEnvio.style.border = "1px solid #e6b800";
+        DOM.resEnvio.innerText = "⏳ Guardando resultado...";
+
+        const payload = {
+            nombre_alumno: estadoApp.nombreAlumno,
+            nombre_reto:   estadoApp.retoNombre || "EVALUAR POSICIONES",
+            puntos:        estadoApp.puntosFinales
+        };
+
+        try {
+            const response = await fetch(URL_SCRIPT, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                DOM.resEnvio.style.backgroundColor = "#001a00";
+                DOM.resEnvio.style.color = "#33cc66";
+                DOM.resEnvio.style.border = "1px solid #33cc66";
+                DOM.resEnvio.innerText = "✅ Resultado guardado correctamente";
+            } else {
+                throw new Error(data.error || "Respuesta inesperada del servidor");
+            }
+
+        } catch (error) {
+            DOM.resEnvio.style.backgroundColor = "#1a0000";
+            DOM.resEnvio.style.color = "#ff3333";
+            DOM.resEnvio.style.border = "1px solid #ff3333";
+            DOM.resEnvio.innerText = "❌ Error al guardar: " + error.message;
         }
+    }
 
         async function detectarFrame() {
             if (!estadoApp.pruebaActiva) return;
