@@ -858,6 +858,35 @@
             inputEstatura.style.color           = "#aaaaaa";
             inputEstatura.style.cursor          = "not-allowed";
         }
+
+        // Verificación de límite diario
+        const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbwX5w8iiwkJVbGtpz-5f20U9jue2MC0vouE3blkHXo9CIMqg9bvCZrAYE8WKxH4gXGWzg/exec";
+        const btnStart = document.getElementById('btn-start');
+
+        fetch(URL_SCRIPT)
+        .then(res => res.json())
+        .then(data => {
+            // Obtener el límite diario del catálogo
+            const retoInfo = data.retos.find(r => r.nombre === estadoApp.retoNombre);
+            const limitePermitido = retoInfo ? parseInt(retoInfo.diario_permitido) : 999;
+
+            // Contar intentos de hoy para este alumno y este reto
+            const claveHoy = `${estadoApp.nombreAlumno}_${estadoApp.retoNombre}`;
+            const intentosHoy = data.intentosHoy[claveHoy] || 0;
+
+            if (intentosHoy >= limitePermitido) {
+                btnStart.disabled = true;
+                btnStart.style.backgroundColor = "#333";
+                btnStart.style.color = "#777";
+                btnStart.style.cursor = "not-allowed";
+                btnStart.innerText = `Límite diario alcanzado (${intentosHoy}/${limitePermitido})`;
+            }
+        })
+        .catch(() => {
+            // Si falla la consulta, permitimos continuar sin bloquear al alumno
+            console.warn("No se pudo verificar el límite diario.");
+        });
+
     } else {
         // Fallback: si no hay URL, usa localStorage como antes
         let nombreGuardado = localStorage.getItem('senshikan_last_student');
