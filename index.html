@@ -1078,58 +1078,25 @@ DOM.resMode.innerText = `MODO: ${estadoApp.modoTextoActual}`;
         DOM.resEnvio.style.border = "1px solid #e6b800";
         DOM.resEnvio.innerText = "⏳ Guardando resultado...";
 
-        try {
-            // Crear iframe oculto como destino del formulario
-            const iframe = document.createElement('iframe');
-            iframe.name = "iframe_envio";
-            iframe.style.display = "none";
-            document.body.appendChild(iframe);
+        const formData = new FormData();
+        formData.append('nombre_alumno', estadoApp.nombreAlumno);
+        formData.append('nombre_reto',   estadoApp.retoNombre || "EVALUAR POSICIONES");
+        formData.append('puntos',        estadoApp.puntosFinales);
 
-            // Crear formulario oculto
-            const form = document.createElement('form');
-            form.method = "POST";
-            form.action = URL_SCRIPT;
-            form.target = "iframe_envio";
-            form.style.display = "none";
-
-            // Agregar campos
-            const campos = {
-                nombre_alumno: estadoApp.nombreAlumno,
-                nombre_reto:   estadoApp.retoNombre || "EVALUAR POSICIONES",
-                puntos:        estadoApp.puntosFinales
-            };
-
-            Object.keys(campos).forEach(key => {
-                const input = document.createElement('input');
-                input.type  = "hidden";
-                input.name  = key;
-                input.value = campos[key];
-                form.appendChild(input);
-            });
-
-            document.body.appendChild(form);
-            form.submit();
-
-            // Confirmar éxito tras el envío
-            setTimeout(() => {
-                DOM.resEnvio.style.backgroundColor = "#001a00";
-                DOM.resEnvio.style.color = "#33cc66";
-                DOM.resEnvio.style.border = "1px solid #33cc66";
-                DOM.resEnvio.innerText = "✅ Resultado guardado correctamente";
-
-                // Limpiar elementos temporales
-                document.body.removeChild(form);
-                document.body.removeChild(iframe);
-            }, 2500);
-
-        } catch (error) {
+        fetch(URL_SCRIPT, { method: "POST", mode: "no-cors", body: formData })
+        .then(() => {
+            DOM.resEnvio.style.backgroundColor = "#001a00";
+            DOM.resEnvio.style.color = "#33cc66";
+            DOM.resEnvio.style.border = "1px solid #33cc66";
+            DOM.resEnvio.innerText = "✅ Resultado guardado correctamente";
+        })
+        .catch(err => {
             DOM.resEnvio.style.backgroundColor = "#1a0000";
             DOM.resEnvio.style.color = "#ff3333";
             DOM.resEnvio.style.border = "1px solid #ff3333";
-            DOM.resEnvio.innerText = "❌ Error al guardar: " + error.message;
-        }
+            DOM.resEnvio.innerText = "❌ Error al guardar: " + err.message;
+        });
     }
-
         async function detectarFrame() {
             if (!estadoApp.pruebaActiva) return;
 
