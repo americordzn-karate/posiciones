@@ -441,7 +441,9 @@
                 <p id="res-date" style="font-size: 0.75rem; color: var(--color-text-muted); margin-top: 3px;"></p>
             </div>
             <div class="score-final" id="res-score">0%</div>
-            <p style="text-align: center; font-size: 0.85rem; margin-bottom: 10px; color: var(--color-text-muted);" id="res-total-logradas"></p>
+<div style="text-align: center; margin: 6px 0 4px 0; font-size: 1rem; color: var(--color-text-muted);">Puntos obtenidos</div>
+<div style="text-align: center; font-size: 2rem; font-weight: bold; color: #33cc66; margin-bottom: 8px;" id="res-puntos">0 pts</div>
+<p style="text-align: center; font-size: 0.85rem; margin-bottom: 10px; color: var(--color-text-muted);" id="res-total-logradas"></p>
             
             <div class="table-wrapper">
                 <table class="table-results">
@@ -464,6 +466,11 @@
         const CONFIG = {
             TIEMPO_MAESTRO_TOTAL: 120,
             TIEMPO_VENTANA_POSTURA: 20,
+            MULTIPLICADOR_PUNTOS: {     // ← AGREGAR
+        "Principiante": 0.20,   // ← AGREGAR
+        "Intermedio":   0.40,   // ← AGREGAR
+        "Avanzado":     0.60    // ← AGREGAR
+    },                          // ← AGREGAR
             TIEMPO_RETENCION_REQUERIDO: 5,
             TOLERANCIA_PORCENTAJE: 0.50, 
             BASE_MAX_POSICIONES: 15,
@@ -486,6 +493,7 @@
             retoNombre: "",        // ← AGREGAR
     edadAlumno: 0,         // ← AGREGAR
     pesoAlumno: 0,         // ← AGREGAR
+            puntosFinales: 0,      // ← AGREGAR
             guardia: "izquierdo",
             camaraSeleccionada: "user",
             modoTextoActual: "Principiante", 
@@ -808,6 +816,7 @@
             resScore: document.getElementById('res-score'),
             resTotalLogradas: document.getElementById('res-total-logradas'),
             resTableBody: document.getElementById('res-table-body'),
+            resPuntos: document.getElementById('res-puntos'),     // ← AGREGAR
             video: document.getElementById('webcam'),
             canvas: document.getElementById('output-canvas'),
             btnRestartApp: document.getElementById('btn-restart-app')
@@ -1026,11 +1035,15 @@
 
             let calificacionFinal = Math.min(100, Math.round((estadoApp.score * 100) / CONFIG.BASE_MAX_POSICIONES));
 
-            DOM.resStudent.innerText = estadoApp.nombreAlumno;
-            DOM.resMode.innerText = `MODO: ${estadoApp.modoTextoActual}`;
+const multiplicador = CONFIG.MULTIPLICADOR_PUNTOS[estadoApp.modoTextoActual] || 0.20;
+estadoApp.puntosFinales = Math.round(calificacionFinal * multiplicador);
+
+DOM.resStudent.innerText = estadoApp.nombreAlumno;
+DOM.resMode.innerText = `MODO: ${estadoApp.modoTextoActual}`;
             DOM.resDate.innerText = new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
             DOM.resScore.innerText = `${calificacionFinal}%`;
             DOM.resTotalLogradas.innerText = `${estadoApp.score} de 15 posiciones requeridas`;
+            DOM.resPuntos.innerText = `${estadoApp.puntosFinales} pts`;     // ← AGREGAR
 
             DOM.resTableBody.innerHTML = "";
             estadoApp.historialResultados.forEach(res => {
