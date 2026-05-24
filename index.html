@@ -562,7 +562,25 @@
                 window.speechSynthesis.cancel();
                 let utterance = new SpeechSynthesisUtterance(mensaje);
                 utterance.lang = 'es-MX';
-                if (callback) utterance.onend = callback;
+
+                if (callback) {
+                    let callbackEjecutado = false;
+
+                    const ejecutarCallback = () => {
+                        if (!callbackEjecutado) {
+                            callbackEjecutado = true;
+                            callback();
+                        }
+                    };
+
+                    utterance.onend = ejecutarCallback;
+                    utterance.onerror = ejecutarCallback;
+
+                    // Tiempo de seguridad: duración estimada del mensaje + 1 segundo de margen
+                    const tiempoSeguridad = Math.max(2000, mensaje.length * 60);
+                    setTimeout(ejecutarCallback, tiempoSeguridad);
+                }
+
                 window.speechSynthesis.speak(utterance);
             } else if (callback) {
                 callback();
