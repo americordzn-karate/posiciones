@@ -404,7 +404,7 @@
                     <option value="environment">Trasera (Instructor - Modo Real)</option>
                 </select>
             </div>
-            <button class="btn" id="btn-start">Iniciar Evaluación</button>
+            <button class="btn" id="btn-start" disabled style="background-color:#333; color:#777; cursor:not-allowed;">Verificando disponibilidad...</button>
         </div>
 
         <div class="card" id="loading-overlay">
@@ -898,11 +898,22 @@
                 btnStart.style.color = "#777";
                 btnStart.style.cursor = "not-allowed";
                 btnStart.innerText = `Límite diario alcanzado (${intentosHoy}/${limitePermitido})`;
+            } else {
+                btnStart.disabled = false;
+                btnStart.style.backgroundColor = "";
+                btnStart.style.color = "";
+                btnStart.style.cursor = "";
+                btnStart.innerText = "Iniciar Evaluación";
             }
         })
         .catch(() => {
-            // Si falla la consulta, permitimos continuar sin bloquear al alumno
+            // Si falla la consulta, habilitamos el botón para no bloquear al alumno
             console.warn("No se pudo verificar el límite diario.");
+            btnStart.disabled = false;
+            btnStart.style.backgroundColor = "";
+            btnStart.style.color = "";
+            btnStart.style.cursor = "";
+            btnStart.innerText = "Iniciar Evaluación";
         });
 
     } else {
