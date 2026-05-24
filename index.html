@@ -1085,22 +1085,17 @@ DOM.resMode.innerText = `MODO: ${estadoApp.modoTextoActual}`;
         };
 
         try {
-            const response = await fetch(URL_SCRIPT, {
+            await fetch(URL_SCRIPT, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                mode: "no-cors",
+                headers: { "Content-Type": "text/plain" },
                 body: JSON.stringify(payload)
             });
 
-            const data = await response.json();
-
-            if (data.success) {
-                DOM.resEnvio.style.backgroundColor = "#001a00";
-                DOM.resEnvio.style.color = "#33cc66";
-                DOM.resEnvio.style.border = "1px solid #33cc66";
-                DOM.resEnvio.innerText = "✅ Resultado guardado correctamente";
-            } else {
-                throw new Error(data.error || "Respuesta inesperada del servidor");
-            }
+            DOM.resEnvio.style.backgroundColor = "#001a00";
+            DOM.resEnvio.style.color = "#33cc66";
+            DOM.resEnvio.style.border = "1px solid #33cc66";
+            DOM.resEnvio.innerText = "✅ Resultado guardado correctamente";
 
         } catch (error) {
             DOM.resEnvio.style.backgroundColor = "#1a0000";
